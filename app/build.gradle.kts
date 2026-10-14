@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.1.20"
 }
 
 android {
@@ -12,8 +13,8 @@ android {
         applicationId = "dev.anicli.android"
         minSdk = 23
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
     }
 
     buildTypes {
@@ -44,6 +45,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.media3:media3-exoplayer:1.6.1")
     implementation("androidx.media3:media3-ui:1.6.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
