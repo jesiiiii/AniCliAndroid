@@ -14,8 +14,7 @@ import java.util.concurrent.TimeUnit
  * Upstream source credentials must remain on that backend, never in the APK.
  */
 object AnimeApi {
-    // Set this to the deployed HTTPS proxy base URL before expecting live results.
-    private const val BASE_URL = "https://YOUR-SECURE-PROXY.example/"
+    private const val BASE_URL = "https://anicli-secure-api-lzhrek.v2.appdeploy.ai/"
     private val client = OkHttpClient.Builder()
         .connectTimeout(12, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
@@ -23,9 +22,6 @@ object AnimeApi {
         .build()
 
     suspend fun search(query: String): List<Anime> = withContext(Dispatchers.IO) {
-        if (BASE_URL.contains("YOUR-SECURE-PROXY")) {
-            throw IOException("لم يُضبط عنوان خادم البحث بعد.")
-        }
         val encoded = java.net.URLEncoder.encode(query.trim(), "UTF-8")
         val request = Request.Builder()
             .url(BASE_URL.trimEnd('/') + "/api/search?q=" + encoded)
