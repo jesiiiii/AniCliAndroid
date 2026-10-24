@@ -494,21 +494,6 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenFavorites: () -> Unit, onOpenSett
                             }
                         }
                     }
-                    val catalog = (vm.trending + vm.topRated).distinctBy { it.id }
-                    val movies = catalog.filter { it.animeType.contains("فيلم") || it.animeType.contains("movie", true) }
-                    val series = catalog.filterNot { it.animeType.contains("فيلم") || it.animeType.contains("movie", true) }
-                    item {
-                        HomeSectionTitle("الأفلام")
-                        CategoryCapsulesRow(movies.ifEmpty { catalog }, onSelect = { onOpenSearch() })
-                    }
-                    item {
-                        HomeSectionTitle("المسلسلات")
-                        CategoryCapsulesRow(series.ifEmpty { catalog }, onSelect = { onOpenSearch() })
-                    }
-                    if (favorites.isNotEmpty()) {
-                        item { HomeSectionTitle("مفضلتك") }
-                        item { HomeGridHorizontal(favorites, "f", onOpenAnime) }
-                    }
                     if (vm.latest.isNotEmpty()) {
                         item { HomeSectionTitle("مستمر حالياً") }
                         item {
@@ -516,7 +501,7 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenFavorites: () -> Unit, onOpenSett
                                 contentPadding = PaddingValues(horizontal = 16.dp),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                items(vm.latest, key = { it.animeId + "-" + it.episodeNumber }) { ep ->
+                                items(vm.latest.distinctBy { it.animeId }, key = { it.animeId + "-" + it.episodeNumber }) { ep ->
                                     PosterCard(
                                         title = ep.animeTitle,
                                         posterUrl = ep.posterUrl,
@@ -529,18 +514,40 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenFavorites: () -> Unit, onOpenSett
                         }
                     }
                     if (vm.trending.isNotEmpty()) {
+                        item { HomeSectionTitle("الأكثر شعبية") }
                         item {
-                            Text(
-                                "الأكثر شعبية",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Ui.textPrimary,
-                                modifier = Modifier.padding(horizontal = 16.dp)
-                            )
+                            Column(
+                                Modifier.padding(horizontal = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                vm.trending.take(6).chunked(2).forEachIndexed { rowIndex, rowItems ->
+                                    Row(
+                                        Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        rowItems.forEach { anime ->
+                                            Box(Modifier.weight(1f)) {
+                                                AnimeInfoCard(anime = anime, onClick = { onOpenAnime(anime) })
+                                            }
+                                        }
+                                        if (rowItems.size == 1) Spacer(Modifier.weight(1f))
+                                    }
+                                }
+                            }
                         }
-                        item {
-                            HomeGridHorizontal(vm.trending, "t", onOpenAnime)
-                        }
+                    }
+                    if (favorites.isNotEmpty()) {
+                        item { HomeSectionTitle("مفضلتك") }
+                        item { HomeGridHorizontal(favorites, "f", onOpenAnime) }
+                    }
+                    if (vm.topRated.isNotEmpty()) {
+                        item { HomeSectionTitle("الأعلى تقييماً") }
+                        item { HomeGridHorizontal(vm.topRated, "r", onOpenAnime) }
+                    }
+                    val catalog = (vm.trending + vm.topRated).distinctBy { it.id }
+                    if (catalog.isNotEmpty()) {
+                        item { HomeSectionTitle("تصفّح حسب التصنيف") }
+                        item { CategoryCapsulesRow(catalog, onSelect = { onOpenSearch() }) }
                     }
                     if (vm.topRated.isNotEmpty()) {
                         item {
@@ -679,6 +686,59 @@ fun HomeSectionTitle(title: String) {
         color = Ui.textPrimary,
         modifier = Modifier.padding(horizontal = 16.dp)
     )
+}
+
+@Composable
+fun AnimeInfoCard(anime: Anime, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(112.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.White)
+            .clickable(onClick = onClick)
+            .padding(9.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AsyncImage(
+            model = anime.posterUrl,
+            contentDescription = "غلاف ${anime.title}",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .width(68.dp)
+                .fillMaxSize()
+                .clip(RoundedCornerShape(11.dp))
+                .background(Ui.placeholder)
+        )
+        Column(
+            Modifier.weight(1f).padding(start = 9.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Text(
+                anime.title,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = Ui.textPrimary,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (anime.rating.isNotBlank()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Star, contentDescription = null, tint = Ui.star, modifier = Modifier.size(13.dp))
+                    Text(anime.rating, fontSize = 11.sp, color = Ui.textSecondary, modifier = Modifier.padding(start = 3.dp))
+                }
+            }
+            Text(
+                anime.genres.ifBlank { anime.animeType }.ifBlank { "أنمي" },
+                fontSize = 10.sp,
+                color = Ui.textSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text("عرض التفاصيل  ›", fontSize = 10.sp, color = Ui.accent, fontWeight = FontWeight.Bold)
+        }
+    }
 }
 
 @Composable
