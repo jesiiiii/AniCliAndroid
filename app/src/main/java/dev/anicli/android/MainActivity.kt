@@ -392,116 +392,95 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenFavorites: () -> Unit, onOpenSett
     val vm: HomeViewModel = viewModel()
     val context = LocalContext.current
     var favorites by remember { mutableStateOf(FavoriteAnimeStore.getAll(context).sortedBy { it.title.lowercase() }) }
-    var featuredRotation by rememberSaveable { mutableStateOf((System.currentTimeMillis() / 172800000L).toInt()) }
+
     LaunchedEffect(Unit) {
-        while (true) {
-            val nextSlot = (System.currentTimeMillis() / 172800000L + 1L) * 172800000L
-            delay((nextSlot - System.currentTimeMillis()).coerceAtLeast(1000L))
-            featuredRotation = (System.currentTimeMillis() / 172800000L).toInt()
-        }
-    }
-    val featuredOrder = remember(vm.trending, featuredRotation) {
-        val candidates = vm.trending.take(5)
-        if (candidates.isEmpty()) candidates else {
-            val offset = Math.floorMod(featuredRotation, candidates.size)
-            candidates.drop(offset) + candidates.take(offset)
-        }
-    }
-    LaunchedEffect(Unit) { favorites = FavoriteAnimeStore.getAll(context).sortedBy { it.title.lowercase() } }
-    LaunchedEffect(Unit) {
+        favorites = FavoriteAnimeStore.getAll(context).sortedBy { it.title.lowercase() }
         if (vm.latest.isEmpty() && vm.trending.isEmpty() && vm.topRated.isEmpty()) vm.load()
     }
+
     Column(
-        Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .background(Ui.background)
+        Modifier.fillMaxSize().statusBarsPadding().background(Ui.background)
     ) {
         Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+            Modifier.fillMaxWidth().padding(start = 20.dp, end = 16.dp, top = 12.dp, bottom = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            Column(Modifier.weight(1f)) {
+                Text("اكتشف عالم الأنمي", fontSize = 25.sp, lineHeight = 31.sp, fontWeight = FontWeight.ExtraBold, color = Ui.textPrimary)
+                Text("أعمال جديدة ومفضّلة، في مكان واحد", fontSize = 12.sp, color = Ui.textSecondary, modifier = Modifier.padding(top = 3.dp))
+            }
             Box(
-                Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                     .background(Color(0xFFC8102E)),
+                Modifier.size(46.dp).clip(RoundedCornerShape(16.dp)).background(Ui.accent),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Favorite, contentDescription = null, tint = Color.White, modifier = Modifier.size(25.dp))
-            }
-            Spacer(Modifier.width(10.dp))
-            Column {
-                Text("Uchiha Anime", fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Ui.textPrimary)
-                Text("أنمي بالعربية، حلقة بعد حلقة", fontSize = 12.sp, color = Ui.textSecondary)
+                Icon(Icons.Default.Favorite, contentDescription = "Uchiha Anime", tint = Color.White, modifier = Modifier.size(24.dp))
             }
         }
+
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
-                .height(46.dp).clip(RoundedCornerShape(24.dp)).background(Color.White)
-                .clickable { onOpenSearch() }.padding(horizontal = 14.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(50.dp)
+                .clip(RoundedCornerShape(16.dp)).background(Color.White)
+                .clickable { onOpenSearch() }.padding(horizontal = 15.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(Icons.Default.Search, contentDescription = "بحث", tint = Ui.textSecondary)
-            Text("ابحث عن أنمي...", modifier = Modifier.weight(1f).padding(horizontal = 10.dp), color = Ui.textSecondary, fontSize = 14.sp)
+            Text("ابحث عن اسم الأنمي...", modifier = Modifier.weight(1f).padding(horizontal = 10.dp), color = Ui.textSecondary, fontSize = 14.sp)
+            Box(Modifier.clip(RoundedCornerShape(9.dp)).background(Ui.accentSoft).padding(horizontal = 9.dp, vertical = 6.dp)) {
+                Text("بحث", color = Ui.accent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
         }
+
         when {
-            vm.loading && vm.latest.isEmpty() -> {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(56.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Ui.placeholder)
-                    )
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(190.dp)
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(Ui.placeholder)
-                    )
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(190.dp)
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(Ui.placeholder)
-                    )
+            vm.loading && vm.latest.isEmpty() && vm.trending.isEmpty() -> {
+                Column(Modifier.weight(1f).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    repeat(4) {
+                        Box(Modifier.fillMaxWidth().height(112.dp).clip(RoundedCornerShape(18.dp)).background(Ui.placeholder))
+                    }
                 }
             }
             vm.error != null && vm.latest.isEmpty() && vm.trending.isEmpty() && vm.topRated.isEmpty() -> {
-                ErrorState(message = vm.error.orEmpty()) { vm.load() }
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    ErrorState(message = vm.error.orEmpty()) { vm.load() }
+                }
             }
             else -> {
                 LazyColumn(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(18.dp),
-                    contentPadding = PaddingValues(bottom = 18.dp)
+                    verticalArrangement = Arrangement.spacedBy(15.dp),
+                    contentPadding = PaddingValues(top = 20.dp, bottom = 22.dp)
                 ) {
-                    if (featuredOrder.isNotEmpty()) {
-                        item {
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 8.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                items(featuredOrder, key = { "featured-" + it.id }) { anime ->
-                                    FeaturedAnimeCard(anime = anime, onClick = { onOpenAnime(anime) })
-                                }
+                    item {
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("الرائج الآن", fontSize = 24.sp, lineHeight = 29.sp, fontWeight = FontWeight.ExtraBold, color = Ui.textPrimary)
+                                Text("أنميات يكتشفها الجميع", fontSize = 12.sp, color = Ui.textSecondary, modifier = Modifier.padding(top = 3.dp))
+                            }
+                            Box(Modifier.clip(RoundedCornerShape(10.dp)).background(Ui.accentSoft).padding(horizontal = 10.dp, vertical = 7.dp)) {
+                                Text("TRENDING", color = Ui.accent, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 0.7.sp)
                             }
                         }
                     }
+
+                    if (vm.trending.isNotEmpty()) {
+                        items(vm.trending.take(12), key = { "trend-list-" + it.id }) { anime ->
+                            AnimeInfoCard(
+                                anime = anime,
+                                onClick = { onOpenAnime(anime) }
+                            )
+                        }
+                    }
+
                     if (vm.latest.isNotEmpty()) {
-                        item { HomeSectionTitle("مستمر حالياً") }
+                        item { HomeSectionTitle("أحدث الحلقات") }
                         item {
                             LazyRow(
                                 contentPadding = PaddingValues(horizontal = 16.dp),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                items(vm.latest.distinctBy { it.animeId }, key = { it.animeId + "-" + it.episodeNumber }) { ep ->
+                                items(vm.latest.distinctBy { it.animeId }, key = { "latest-" + it.animeId + "-" + it.episodeNumber }) { ep ->
                                     PosterCard(
                                         title = ep.animeTitle,
                                         posterUrl = ep.posterUrl,
@@ -513,37 +492,17 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenFavorites: () -> Unit, onOpenSett
                             }
                         }
                     }
-                    if (vm.trending.isNotEmpty()) {
-                        item { HomeSectionTitle("الأكثر شعبية") }
-                        item {
-                            Column(
-                                Modifier.padding(horizontal = 16.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                vm.trending.take(6).chunked(2).forEachIndexed { rowIndex, rowItems ->
-                                    Row(
-                                        Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                    ) {
-                                        rowItems.forEach { anime ->
-                                            Box(Modifier.weight(1f)) {
-                                                AnimeInfoCard(anime = anime, onClick = { onOpenAnime(anime) })
-                                            }
-                                        }
-                                        if (rowItems.size == 1) Spacer(Modifier.weight(1f))
-                                    }
-                                }
-                            }
-                        }
-                    }
+
                     if (favorites.isNotEmpty()) {
-                        item { HomeSectionTitle("مفضلتك") }
-                        item { HomeGridHorizontal(favorites, "f", onOpenAnime) }
+                        item { HomeSectionTitle("قائمتك المفضّلة") }
+                        item { HomeGridHorizontal(favorites, "fav-home-", onOpenAnime) }
                     }
+
                     if (vm.topRated.isNotEmpty()) {
                         item { HomeSectionTitle("الأعلى تقييماً") }
-                        item { HomeGridHorizontal(vm.topRated, "r", onOpenAnime) }
+                        item { HomeGridHorizontal(vm.topRated, "rated-home-", onOpenAnime) }
                     }
+
                     val catalog = (vm.trending + vm.topRated).distinctBy { it.id }
                     if (catalog.isNotEmpty()) {
                         item { HomeSectionTitle("تصفّح حسب التصنيف") }
