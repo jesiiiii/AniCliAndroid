@@ -8,18 +8,20 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.IOException
+import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 
-/** All source credentials stay on the HTTPS backend, never in the APK. */
+/** The upstream credentials stay server-side; the APK contains only the public API URL. */
 object AnimeApi {
-    private const val BASE_URL = "https://anicli-secure-api-lb55v9.v2.appdeploy.ai"
+    // This deployment has the configured server-side secret. The older lb55v9 deployment does not.
+    private const val BASE_URL = "https://anicli-secure-api-lzhrek.v2.appdeploy.ai"
     private val client = OkHttpClient.Builder()
         .connectTimeout(12, TimeUnit.SECONDS)
         .readTimeout(25, TimeUnit.SECONDS)
         .callTimeout(35, TimeUnit.SECONDS)
         .build()
 
-    private fun encode(value: String) = java.net.URLEncoder.encode(value.trim(), "UTF-8")
+    private fun encode(value: String) = URLEncoder.encode(value.trim(), "UTF-8")
 
     private suspend fun getJson(path: String): JSONObject = withContext(Dispatchers.IO) {
         val request = Request.Builder()
@@ -36,7 +38,7 @@ object AnimeApi {
             }
             if (!response.isSuccessful || root.has("error")) {
                 val message = root.optString("message").ifBlank {
-                    root.optString("diagnostic").ifBlank { "فشل الطلب (HTTP ${response.code})." }
+                    "فشل الطلب (HTTP ${response.code})."
                 }
                 throw IOException(message)
             }
@@ -45,8 +47,10 @@ object AnimeApi {
     }
 
     suspend fun search(query: String): List<Anime> {
+        if (query.isBlank()) throw IOException("اكتب اسم الأنمي أولاً.")
         val root = getJson("/api/search?q=${encode(query)}")
-        val array = root.optJSONArray("results") ?: JSONArray()
+        val array = root.optJSONArray("results")
+            ?: throw IOException("صيغة نتائج البحث غير متوافقة مع التطبيق.")
         return buildList {
             for (i in 0 until array.length()) {
                 val item = array.optJSONObject(i) ?: continue
@@ -66,19 +70,15 @@ object AnimeApi {
     }
 
     suspend fun getEpisodes(animeId: String): List<Episode> {
+        if (animeId.isBlank()) throw IOException("معرّف الأنمي غير صالح.")
         val root = getJson("/api/episodes?animeId=${encode(animeId)}")
-        val array = root.optJSONArray("episodes") ?: JSONArray()
+        val array = root.optJSONArray("episodes")
+            ?: throw IOException("صيغة قائمة الحلقات غير متوافقة مع التطبيق.")
         return buildList {
             for (i in 0 until array.length()) {
                 val item = array.optJSONObject(i) ?: continue
                 val number = item.optString("number").takeIf { it.isNotBlank() } ?: continue
-                add(
-                    Episode(
-                        number = number,
-                        type = item.optString("type", "Episode"),
-                        displayNumber = item.optDouble("displayNumber", i + 1.0)
-                    )
-                )
+                add(Episode(number, item.optString("type", "Episode"), item.optDouble("displayNumber", i + 1.0)))
             }
         }
     }
@@ -89,11 +89,11 @@ object AnimeApi {
         animeType: String = "SERIES",
         quality: String = "auto"
     ): StreamInfo {
-        val path = "/api/stream?animeId=${encode(animeId)}" +
-            "&episode=${encode(episode)}&type=${encode(animeType)}&quality=${encode(quality)}"
+        if (animeId.isBlank() || episode.isBlank()) throw IOException("بيانات الحلقة غير مكتملة.")
+        val path = "/api/stream?animeId=${encode(animeId)}&episode=${encode(episode)}&type=${encode(animeType)}&quality=${encode(quality)}"
         val root = getJson(path)
         val url = root.optString("streamUrl").takeIf { it.startsWith("https://") }
-            ?: throw IOException("لم يُرجع الخادم رابط فيديو صالحاً.")
+            ?: throw IOException("لم يُرجع الخادم رابط فيديو HTTPS صالحاً.")
         return StreamInfo(url = url, quality = root.optString("quality", "auto"))
     }
 }
