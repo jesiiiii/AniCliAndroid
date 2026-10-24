@@ -827,18 +827,25 @@ fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: ()
                                     Brush.verticalGradient(listOf(Color(0x22000000), Color(0x44000000), Color(0xF7FFFFFF)))
                                 )
                             )
-                            Row(
-                                Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(16.dp),
-                                verticalAlignment = Alignment.Bottom
+                            Column(
+                                Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp)
                             ) {
-                                AsyncImage(
-                                    model = info.anime.posterUrl,
-                                    contentDescription = "غلاف الأنمي",
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.width(112.dp).aspectRatio(0.68f)
-                                        .clip(RoundedCornerShape(16.dp)).background(Ui.placeholder)
-                                )
-                                Column(Modifier.weight(1f).padding(start = 14.dp, bottom = 2.dp)) {
+                                Row(verticalAlignment = Alignment.Bottom) {
+                                    Spacer(Modifier.weight(1f))
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Text("UCHIHA ANIME", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Black)
+                                        Text("تفاصيل العمل", color = Color.White, fontSize = 12.sp)
+                                    }
+                                }
+                                Row(verticalAlignment = Alignment.Bottom) {
+                                    AsyncImage(
+                                        model = info.anime.posterUrl,
+                                        contentDescription = "غلاف الأنمي",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.width(112.dp).aspectRatio(0.68f)
+                                            .clip(RoundedCornerShape(16.dp)).background(Ui.placeholder)
+                                    )
+                                    Column(Modifier.weight(1f).padding(start = 14.dp, bottom = 2.dp)) {
                                 Text(
                                     info.anime.title,
                                     fontSize = 20.sp,
@@ -875,6 +882,7 @@ fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: ()
                                         maxLines = 3,
                                         overflow = TextOverflow.Ellipsis
                                     )
+                                    }
                                 }
                             }
                             }
