@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -204,15 +205,28 @@ fun PlayerScreen(
     LaunchedEffect(fullscreen) { onOrientation(fullscreen) }
 
     DisposableEffect(player) {
+        val activity = context as? ComponentActivity
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> player.pause()
                 else -> Unit
             }
         }
-        (context as? ComponentActivity)?.lifecycle?.addObserver(observer)
+        val playbackListener = object : Player.Listener {
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                if (isPlaying) {
+                    activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                } else {
+                    activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                }
+            }
+        }
+        player.addListener(playbackListener)
+        activity?.lifecycle?.addObserver(observer)
         onDispose {
-            (context as? ComponentActivity)?.lifecycle?.removeObserver(observer)
+            player.removeListener(playbackListener)
+            activity?.lifecycle?.removeObserver(observer)
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             player.release()
         }
     }
