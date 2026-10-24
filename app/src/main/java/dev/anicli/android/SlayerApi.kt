@@ -141,10 +141,15 @@ object SlayerApi {
 
     private fun episodeTitleNumberRegex(): Pattern = Pattern.compile("\\d+")
 
+    private val episodePrefixRegex: Pattern = Pattern.compile(
+        "^(الحلقة|الحلقه|Episode|Ep|EP)\\s*[:\\s\\-]*\\d+\\s*[:\\s\\-]*",
+        Pattern.CASE_INSENSITIVE
+    )
+
     fun cleanEpisodeTitle(rawName: String, epNum: Int): String {
         var name = rawName.trim()
         if (name.isEmpty()) return ""
-        name = name.replaceFirst(Regex("^(الحلقة|الحلقه|Episode|Ep|EP)\\s*[:\\s\\-]*\\d+\\s*[:\\s\\-]*"), "", RegexOption.IGNORE_CASE).trim()
+        name = episodePrefixRegex.matcher(name).replaceFirst("").trim()
         if (name.isEmpty() || name.matches(Regex("\\d+")) || name == epNum.toString()) return ""
         return name
     }

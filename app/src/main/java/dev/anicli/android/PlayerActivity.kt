@@ -19,14 +19,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Forward10
-import androidx.compose.material.icons.automirrored.filled.Replay10
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Pause
@@ -442,8 +441,14 @@ fun PlayerControlBar(player: ExoPlayer, onFullscreen: () -> Unit) {
             Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = { player.seekTo((player.currentPosition - 10_000).coerceAtLeast(0)) }) {
-                Icon(Icons.AutoMirrored.Filled.Replay10, contentDescription = "للخلف 10 ثوانٍ", tint = Color(0xFFE6E1F2))
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFF2A2440))
+                    .clickable { player.seekTo((player.currentPosition - 10_000).coerceAtLeast(0)) }
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
+            ) {
+                Text("-10ث", color = Color(0xFFE6E1F2), fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
             IconButton(onClick = {
                 val next = !player.playWhenReady
@@ -457,8 +462,14 @@ fun PlayerControlBar(player: ExoPlayer, onFullscreen: () -> Unit) {
                     modifier = Modifier.size(38.dp)
                 )
             }
-            IconButton(onClick = { player.seekTo(player.currentPosition + 10_000) }) {
-                Icon(Icons.AutoMirrored.Filled.Forward10, contentDescription = "للأمام 10 ثوانٍ", tint = Color(0xFFE6E1F2))
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFF2A2440))
+                    .clickable { player.seekTo(player.currentPosition + 10_000) }
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
+            ) {
+                Text("+10ث", color = Color(0xFFE6E1F2), fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.weight(1f))
             Box {
