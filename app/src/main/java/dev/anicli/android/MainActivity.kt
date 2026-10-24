@@ -3,7 +3,6 @@ package dev.anicli.android
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,36 +11,33 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -53,58 +49,29 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import dev.anicli.android.onboarding.OnboardingPrefs
+import dev.anicli.android.onboarding.OnboardingScreen
+import dev.anicli.android.ui.theme.UchihaTheme
+import dev.anicli.android.util.Dimens.CardCornerRadius
+import dev.anicli.android.util.Dimens.CardPosterSize
+import dev.anicli.android.util.Dimens.PillCornerRadius
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import java.io.IOException
-
-object Ui {
-    val accent = Color(0xFF5B4FE9)
-    val accentSoft = Color(0xFFEFEBFF)
-    val background = Color(0xFFF7F7FC)
-    val card = Color.White
-    val textPrimary = Color(0xFF171226)
-    val textSecondary = Color(0xFF6E6880)
-    val placeholder = Color(0xFFE9E7F5)
-    val badge = Color(0xFFFF5A5F)
-    val star = Color(0xFFFFB020)
-    val border = Color(0xFFE3E1EF)
-
-    val light = lightColorScheme(
-        primary = accent,
-        background = background,
-        surface = card,
-        onPrimary = Color.White,
-        onBackground = textPrimary,
-        onSurface = textPrimary
-    )
-
-    fun friendly(e: Throwable, fallback: String): String = when {
-        e is SlayerApi.ApiException -> e.message ?: fallback
-        e is IOException -> "تعذّر الاتصال بالخادم، تحقق من الإنترنت وأعد المحاولة."
-        e.message?.contains("JSON") == true -> "استجابة غير متوقعة من الخادم، جرّب مرة أخرى."
-        else -> e.message ?: fallback
-    }
-}
-
-sealed interface Screen {
-    data object Home : Screen
-    data object Search : Screen
-}
 
 class HomeViewModel : ViewModel() {
     var latest by mutableStateOf<List<SlayerApi.LatestScreenEpisode>>(emptyList())
@@ -123,22 +90,28 @@ class HomeViewModel : ViewModel() {
         error = null
         viewModelScope.launch {
             try {
-                latest = SlayerApi.latestEpisodes(24)
+                latest = SlayerApi.latestEpisodes(12)
             } catch (e: Exception) {
-                error = Ui.friendly(e, "تعذّر تحميل الصفحة الرئيسية.")
+                error = friendly(e, "تعذّر تحميل الصفحة الرئيسية.")
                 loading = false
                 return@launch
             }
             try {
-                trending = SlayerApi.trendingAnime(20)
-                topRated = SlayerApi.topRatedAnime(20)
+                trending = SlayerApi.trendingAnime(10)
+                topRated = SlayerApi.topRatedAnime(10)
             } catch (e: Exception) {
-                error = Ui.friendly(e, "تعذّر تحميل الأنميات الشائعة.")
+                error = friendly(e, "تعذّر تحميل الأنميات الشائعة.")
                 loading = false
                 return@launch
             }
             loading = false
         }
+    }
+
+    private fun friendly(e: Throwable, fallback: String): String = when {
+        e is SlayerApi.ApiException -> e.message ?: fallback
+        e is IOException -> "تعذّر الاتصال بالخادم، تحقق من الإنترنت وأعد المحاولة."
+        else -> e.message ?: fallback
     }
 }
 
@@ -168,7 +141,7 @@ class SearchViewModel : ViewModel() {
                         loading = false
                     } catch (e: Exception) {
                         results = emptyList()
-                        error = Ui.friendly(e, "تعذّر إكمال البحث.")
+                        error = e.message ?: "تعذّر إكمال البحث."
                         loading = false
                     }
                 }
@@ -181,11 +154,17 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme(colorScheme = Ui.light) {
+            UchihaTheme {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-                    UchihaApp(openPlayer = { animeId, animeTitle, episodeNumber ->
-                        startActivity(PlayerActivity.intent(this@MainActivity, animeId, animeTitle, episodeNumber))
-                    })
+                    val context = LocalContext.current
+                    var onboarded by remember {
+                        mutableStateOf(OnboardingPrefs.isOnboardingDone(context))
+                    }
+                    if (!onboarded) {
+                        OnboardingScreen(onFinished = { onboarded = true })
+                        return@CompositionLocalProvider
+                    }
+                    UchihaApp()
                 }
             }
         }
@@ -193,7 +172,8 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun UchihaApp(openPlayer: (String, String, String) -> Unit) {
+fun UchihaApp() {
+    val context = LocalContext.current
     var screen by rememberSaveable { mutableStateOf("home") }
     var selectedAnimeId by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedAnimeTitle by rememberSaveable { mutableStateOf("") }
@@ -201,11 +181,12 @@ fun UchihaApp(openPlayer: (String, String, String) -> Unit) {
     if (selectedAnimeId != null) {
         DetailsScreen(
             animeId = selectedAnimeId!!,
-            onSelectEpisode = { number -> openPlayer(selectedAnimeId!!, selectedAnimeTitle, number) },
-            onBack = {
-                selectedAnimeId = null
-                if (screen == "details") screen = "home"
-            }
+            onSelectEpisode = { number ->
+                context.startActivity(
+                    PlayerActivity.intent(context, selectedAnimeId!!, selectedAnimeTitle, number)
+                )
+            },
+            onBack = { selectedAnimeId = null }
         )
         return
     }
@@ -217,251 +198,329 @@ fun UchihaApp(openPlayer: (String, String, String) -> Unit) {
         return
     }
     HomeScreen(
-        onOpenSearch = { screen = "search" }
-    ) { anime ->
-        selectedAnimeId = anime.id
-        selectedAnimeTitle = anime.title
-    }
+        onOpenSearch = { screen = "search" },
+        onOpenAnime = { anime ->
+            selectedAnimeId = anime.id
+            selectedAnimeTitle = anime.title
+        }
+    )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
     val vm: HomeViewModel = viewModel()
     LaunchedEffect(Unit) {
         if (vm.latest.isEmpty() && vm.trending.isEmpty() && vm.topRated.isEmpty()) vm.load()
     }
-    Column(
-        Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .background(Ui.background)
-    ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Ui.accent),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("U", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
-            }
-            Spacer(Modifier.width(10.dp))
-            Column {
-                Text("Uchiha Anime", fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Ui.textPrimary)
-                Text("أنمي بالعربية، حلقة بعد حلقة", fontSize = 12.sp, color = Ui.textSecondary)
-            }
-        }
-        when {
-            vm.loading && vm.latest.isEmpty() -> {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(56.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Ui.placeholder)
-                    )
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(190.dp)
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(Ui.placeholder)
-                    )
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(190.dp)
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(Ui.placeholder)
+    Scaffold(
+        modifier = Modifier.background(MaterialTheme.colorScheme.background)
+    ) { innerPadding ->
+        Box(Modifier.padding(innerPadding)) {
+            when {
+                vm.loading && vm.latest.isEmpty() -> {
+                    Column(
+                        Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.padding(top = 180.dp),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+                vm.error != null && vm.latest.isEmpty() -> {
+                    ErrorState(
+                        title = "مشكلة في التحميل",
+                        message = vm.error.orEmpty(),
+                        onRetry = { vm.load() }
                     )
                 }
-            }
-            vm.error != null && vm.latest.isEmpty() && vm.trending.isEmpty() && vm.topRated.isEmpty() -> {
-                ErrorState(message = vm.error.orEmpty()) { vm.load() }
-            }
-            else -> {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    item {
-                        Row(
-                            Modifier
-                                .padding(horizontal = 16.dp)
-                                .fillMaxWidth()
-                                .clickable { onOpenSearch() }
-                                .height(52.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(Ui.card),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.Search,
-                                contentDescription = "بحث",
-                                tint = Ui.textSecondary,
-                                modifier = Modifier.padding(start = 14.dp)
-                            )
-                            Text(
-                                "ابحث عن أنمي...",
-                                modifier = Modifier.padding(horizontal = 10.dp),
-                                color = Ui.textSecondary,
-                                fontSize = 15.sp
-                            )
-                        }
-                    }
-                    if (vm.latest.isNotEmpty()) {
-                        item { HomeSectionTitle("أحدث الحلقات") }
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 24.dp)
+                    ) {
                         item {
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                items(vm.latest, key = { it.animeId + "-" + it.episodeNumber }) { ep ->
-                                    PosterCard(
-                                        title = ep.animeTitle,
-                                        posterUrl = ep.posterUrl,
-                                        badge = "حلقة ${ep.episodeNumber}",
-                                        onClick = { onOpenAnime(Anime(id = ep.animeId, title = ep.animeTitle)) }
+                                Box(
+                                    Modifier
+                                        .size(44.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primaryContainer),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        "U",
+                                        style = MaterialTheme.typography.titleLarge,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                }
+                                Spacer(Modifier.size(12.dp))
+                                Text(
+                                    "Uchiha Anime",
+                                    style = MaterialTheme.typography.displaySmall,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(Modifier.weight(1f))
+                                IconButton(onClick = onOpenSearch) {
+                                    Icon(
+                                        Icons.Rounded.Search,
+                                        contentDescription = "بحث",
+                                        tint = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
                             }
                         }
-                    }
-                    if (vm.trending.isNotEmpty()) {
                         item {
-                            Text(
-                                "الأكثر مشاهدة",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Ui.textPrimary,
-                                modifier = Modifier.padding(horizontal = 16.dp)
+                            OutlinedTextField(
+                                value = "",
+                                onValueChange = {},
+                                readOnly = true,
+                                enabled = false,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onOpenSearch() },
+                                singleLine = true,
+                                placeholder = {
+                                    Text("ابحث عن أنمي (عربي أو إنجليزي)...", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                },
+                                shape = RoundedCornerShape(24.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                                )
                             )
                         }
-                        item {
-                            HomeGridHorizontal(vm.trending, "t", onOpenAnime)
+                        if (vm.latest.isNotEmpty()) {
+                            item {
+                                Text(
+                                    "أحدث الحلقات",
+                                    style = MaterialTheme.typography.displaySmall,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            items(vm.latest, key = { "l${it.animeId}-${it.episodeNumber}" }) { ep ->
+                                LatestEpisodeCard(ep) {
+                                    onOpenAnime(Anime(id = ep.animeId, title = ep.animeTitle))
+                                }
+                            }
                         }
-                    }
-                    if (vm.topRated.isNotEmpty()) {
+                        if (vm.trending.isNotEmpty()) {
+                            item {
+                                Text(
+                                    "الأكثر مشاهدة",
+                                    style = MaterialTheme.typography.displaySmall,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            items(vm.trending, key = { "t${it.id}" }) { anime ->
+                                AnimeCard(anime = anime, onClick = { onOpenAnime(anime) })
+                            }
+                        }
+                        if (vm.topRated.isNotEmpty()) {
+                            item {
+                                Text(
+                                    "الأعلى تقييماً",
+                                    style = MaterialTheme.typography.displaySmall,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            items(vm.topRated, key = { "r${it.id}" }) { anime ->
+                                AnimeCard(anime = anime, onClick = { onOpenAnime(anime) })
+                            }
+                        }
                         item {
                             Text(
-                                "الأعلى تقييماً",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Ui.textPrimary,
-                                modifier = Modifier.padding(horizontal = 16.dp)
+                                "المصدر: Anime Slayer موبايل • كل الروابط حقيقية من المصدر",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 6.dp, start = 4.dp)
                             )
                         }
-                        item {
-                            HomeGridHorizontal(vm.topRated, "r", onOpenAnime)
-                        }
                     }
-                    item { Spacer(Modifier.height(30.dp)) }
                 }
             }
         }
     }
 }
 
+/** Reference AnimeCard layout: pill rating, bold title, two-line synopsis. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeSectionTitle(title: String) {
-    Text(
-        title,
-        fontSize = 18.sp,
-        fontWeight = FontWeight.Bold,
-        color = Ui.textPrimary,
-        modifier = Modifier.padding(horizontal = 16.dp)
-    )
-}
-
-@Composable
-fun HomeGridHorizontal(list: List<Anime>, keyPrefix: String, onOpenAnime: (Anime) -> Unit) {
-    LazyRow(
-        contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+fun AnimeCard(
+    anime: Anime,
+    badgeOverride: String? = null,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        onClick = onClick,
+        modifier = modifier,
+        colors = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceDim,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        ),
+        shape = RoundedCornerShape(CardCornerRadius)
     ) {
-        items(list, key = { keyPrefix + it.id }) { anime ->
-            PosterCard(
-                title = anime.title,
-                posterUrl = anime.posterUrl,
-                onClick = { onOpenAnime(anime) }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(6.dp)
+        ) {
+            AsyncImage(
+                model = anime.posterUrl,
+                contentDescription = "غلاف ${anime.title}",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(CardPosterSize)
+                    .clip(RoundedCornerShape(CardCornerRadius))
             )
+            Column(Modifier.padding(vertical = 4.dp)) {
+                Row(
+                    modifier = Modifier
+                        .background(
+                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                            shape = RoundedCornerShape(PillCornerRadius)
+                        )
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Rounded.Star,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Text(
+                        text = badgeOverride ?: anime.rating.ifBlank { "— " },
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                }
+                Text(
+                    text = anime.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = anime.genres.ifBlank { anime.animeType },
+                    overflow = TextOverflow.Ellipsis,
+                    maxLines = 2,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LatestEpisodeCard(
+    episode: SlayerApi.LatestScreenEpisode,
+    onClick: () -> Unit
+) {
+    AnimeCard(
+        anime = Anime(
+            id = episode.animeId,
+            title = episode.animeTitle,
+            posterUrl = episode.posterUrl,
+            animeType = "الحلقة الجديدة ${episode.episodeNumber}",
+            rating = episode.rating.ifBlank { "—" }
+        ),
+        badgeOverride = "ح ${episode.episodeNumber}",
+        onClick = onClick
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(onBack: () -> Unit, onOpenAnime: (Anime) -> Unit) {
     val vm: SearchViewModel = viewModel()
     var query by rememberSaveable { mutableStateOf("") }
-    Column(
-        Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .background(Ui.background)
-    ) {
-        Row(
+    Scaffold(
+        modifier = Modifier.background(MaterialTheme.colorScheme.background)
+    ) { innerPadding ->
+        Column(
             Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .padding(innerPadding)
+                .background(MaterialTheme.colorScheme.background)
         ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "رجوع", tint = Ui.textPrimary)
-            }
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it; vm.query.value = it },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                placeholder = {
-                    Text("اكتب اسم الأنمي (عربي أو إنجليزي)", color = Ui.textSecondary, fontSize = 14.sp)
-                },
-                shape = RoundedCornerShape(16.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Ui.card,
-                    unfocusedContainerColor = Ui.card,
-                    focusedBorderColor = Ui.accent,
-                    unfocusedBorderColor = Ui.border
-                )
-            )
-        }
-        when {
-            vm.loading -> LoadingState("جارٍ البحث...")
-            vm.error != null -> ErrorState(message = vm.error.orEmpty()) {
-                vm.query.value = query + " "
-                vm.query.value = query.trim()
-            }
-            trimmed(query).isBlank() -> EmptyState(
-                iconRes = { },
-                title = "ابحث أولاً",
-                subtitle = "اكتب اسم أي أنمي لتظهر لك نتائجه هنا بالعربية."
-            )
-            vm.searched && vm.results.isEmpty() -> EmptyState(
-                iconRes = null,
-                title = "لا توجد نتائج",
-                subtitle = "تأكد من صيغة الاسم، أو جرّب الاسم الإنجليزي للأنمي."
-            )
-            vm.results.isNotEmpty() -> LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                contentPadding = PaddingValues(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                items(vm.results, key = { it.id + "s" }) { anime ->
-                    PosterCard(title = anime.title, posterUrl = anime.posterUrl) {
-                        onOpenAnime(anime)
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "رجوع", tint = MaterialTheme.colorScheme.onSurface)
+                }
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it; vm.query.value = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(end = 12.dp),
+                    singleLine = true,
+                    placeholder = {
+                        Text("اكتب اسم الأنمي...", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    },
+                    shape = RoundedCornerShape(24.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                    )
+                )
+            }
+            when {
+                vm.loading -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+                vm.error != null -> ErrorState(
+                    title = "تعذّر البحث",
+                    message = vm.error.orEmpty(),
+                    onRetry = {
+                        vm.query.value = vm.query.value.trim() + " "
+                        vm.query.value = vm.query.value.trim()
+                    }
+                )
+                query.isBlank() -> CenterState("اكتب اسم الأنمي", "ابحث بالعربية أو الإنجليزية لتظهر النتائج هنا.")
+                vm.searched && vm.results.isEmpty() -> CenterState(
+                    "لا توجد نتائج",
+                    "تأكد من صيغة الاسم أو جرّب الاسم الإنجليزي للأنمي."
+                )
+                vm.results.isNotEmpty() -> LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 20.dp)
+                ) {
+                    item {
+                        Text(
+                            "النتائج (${vm.results.size})",
+                            style = MaterialTheme.typography.displaySmall,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    items(vm.results, key = { it.id + "s" }) { anime ->
+                        AnimeCard(anime = anime, onClick = { onOpenAnime(anime) })
                     }
                 }
             }
         }
     }
 }
-
-private fun trimmed(value: String): String = value.trim()
 
 @Composable
 fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: () -> Unit) {
@@ -469,130 +528,174 @@ fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: ()
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var expanded by remember { mutableStateOf(false) }
+    val openEpisode: (String) -> Unit = { number ->
+        onSelectEpisode(number)
+    }
     LaunchedEffect(animeId) {
         try {
             data = SlayerApi.getAnimeWithEpisodes(animeId)
             loading = false
         } catch (e: Exception) {
-            error = Ui.friendly(e, "تعذّر تحميل التفاصيل.")
+            error = e.message ?: "تعذّر تحميل التفاصيل."
             loading = false
         }
     }
-    Column(
-        Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .background(Ui.background)
-    ) {
-        Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "رجوع", tint = Ui.textPrimary)
-            }
-            Text("تفاصيل الأنمي", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Ui.textPrimary)
-        }
-        when {
-            loading -> LoadingState("جارٍ تحميل التفاصيل والحلقات...")
-            error != null -> ErrorState(
-                message = error.orEmpty(),
-                onRetry = { error = null; loading = true }
-            )
-            data == null -> EmptyState(null, "لا توجد بيانات", "تعذّر العثور على هذا الأنمي في المصدر.")
-            else -> {
-                val info = data!!
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    item {
-                        Row(
-                            Modifier.padding(horizontal = 16.dp),
-                            verticalAlignment = Alignment.Top
-                        ) {
-                            AsyncImage(
-                                model = info.anime.posterUrl,
-                                contentDescription = "غلاف الأنمي",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .width(120.dp)
-                                    .aspectRatio(0.68f)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(Ui.placeholder)
-                            )
-                            Column(Modifier.padding(start = 14.dp)) {
-                                Text(
-                                    info.anime.title,
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Ui.textPrimary
+    Scaffold(
+        modifier = Modifier.background(MaterialTheme.colorScheme.background)
+    ) { innerPadding ->
+        Box(Modifier.padding(innerPadding)) {
+            when {
+                loading -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+                error != null -> ErrorState(
+                    title = "تعذّر تحميل التفاصيل",
+                    message = error.orEmpty(),
+                    onRetry = { error = null; loading = true }
+                )
+                else -> {
+                    val info = data ?: return@Box
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        item {
+                            Box(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(300.dp)
+                                    .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                AsyncImage(
+                                    model = info.anime.posterUrl,
+                                    contentDescription = "غلاف الأنمي",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
                                 )
-                                info.anime.titleEn.takeIf { it.isNotBlank() && it != info.anime.title }?.let {
-                                    Text(it, fontSize = 13.sp, color = Ui.textSecondary)
-                                }
-                                Spacer(Modifier.height(6.dp))
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    if (info.anime.rating.isNotBlank()) {
-                                        Icon(Icons.Default.Star, null, Modifier.size(16.dp), tint = Ui.star)
-                                        Text(
-                                            " ${info.anime.rating}",
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = Ui.textPrimary
+                                IconButton(
+                                    onClick = onBack,
+                                    modifier = Modifier
+                                        .padding(8.dp)
+                                        .background(
+                                            MaterialTheme.colorScheme.scrim.copy(alpha = 0.35f),
+                                            CircleShape
                                         )
-                                    }
-                                    InfoChip(info.anime.animeType)
-                                }
-                                if (info.anime.genres.isNotBlank()) {
-                                    Spacer(Modifier.height(4.dp))
-                                    Text(
-                                        info.anime.genres,
-                                        fontSize = 12.sp,
-                                        color = Ui.textSecondary,
-                                        maxLines = 3,
-                                        overflow = TextOverflow.Ellipsis
+                                ) {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "رجوع",
+                                        tint = MaterialTheme.colorScheme.onPrimary
                                     )
                                 }
                             }
                         }
-                    }
-                    if (info.anime.description?.isNotBlank() == true) {
                         item {
-                            Column(Modifier.padding(horizontal = 16.dp)) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
                                 Text(
-                                    info.anime.description.orEmpty(),
-                                    fontSize = 14.sp,
-                                    color = Ui.textSecondary,
-                                    maxLines = if (expanded) 60 else 4,
-                                    overflow = TextOverflow.Ellipsis
+                                    text = info.anime.title,
+                                    style = MaterialTheme.typography.displaySmall,
+                                    textAlign = TextAlign.Center,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
-                                TextButton(onClick = { expanded = !expanded }) {
-                                    Text(if (expanded) "إخفاء" else "المزيد", color = Ui.accent)
+                                info.anime.titleEn.takeIf { it.isNotBlank() && it != info.anime.title }?.let {
+                                    Text(
+                                        text = it,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Spacer(Modifier.height(6.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    info.anime.animeType.takeIf { it.isNotBlank() }?.let {
+                                        Text(
+                                            text = it,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                    Text(
+                                        text = " • ",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Icon(
+                                        Icons.Rounded.Star,
+                                        contentDescription = null,
+                                        modifier = Modifier.padding(end = 4.dp),
+                                        tint = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = info.anime.rating.ifBlank { "—" },
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
                                 }
                             }
                         }
-                    }
-                    item {
-                        Text(
-                            "الحلقات (${info.episodes.size})",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Ui.textPrimary,
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-                    }
-                    if (info.episodes.isEmpty()) {
                         item {
-                            EmptyState(
-                                null,
-                                "لا توجد حلقات",
-                                "قد لا تكون الحلقات متاحة بعد في المصدر المختار."
+                            Column(
+                                Modifier.padding(horizontal = 20.dp)
+                            ) {
+                                Text(
+                                    text = "نبذة",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = info.anime.description.orEmpty().ifBlank { "لا يوجد وصف متاح لهذا الأنمي." },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = if (expanded) 60 else 4,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                if (info.anime.description?.length ?: 0 > 180) {
+                                    TextButton(onClick = { expanded = !expanded }) {
+                                        Text(
+                                            if (expanded) "إخفاء" else "المزيد",
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                                if (info.anime.genres.isNotBlank()) {
+                                    Spacer(Modifier.height(6.dp))
+                                    Text(
+                                        text = info.anime.genres,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                        item {
+                            Text(
+                                text = "الحلقات (${info.episodes.size})",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(horizontal = 20.dp)
                             )
                         }
-                    } else {
-                        items(info.episodes, key = { ep -> ep.number + "-" + info.anime.id }) { ep ->
-                            EpisodeCard(episode = ep, onPlay = { onSelectEpisode(ep.number) })
+                        if (info.episodes.isEmpty()) {
+                            item {
+                                CenterState(
+                                    "لا توجد حلقات",
+                                    "قد لا تكون الحلقات متاحة بعد في المصدر المختار."
+                                )
+                            }
+                        } else {
+                            items(info.episodes, key = { ep -> ep.number + "-" + info.anime.id }) { ep ->
+                                EpisodeRow(episode = ep, onPlay = { number -> openEpisode(number) })
+                            }
                         }
+                        item { Spacer(Modifier.height(24.dp)) }
                     }
-                    item { Spacer(Modifier.height(30.dp)) }
                 }
             }
         }
@@ -600,111 +703,63 @@ fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: ()
 }
 
 @Composable
-fun EpisodeCard(episode: Episode, onPlay: (Episode) -> Unit) {
-    Box(
-        Modifier
-            .padding(horizontal = 16.dp)
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(Ui.card)
-            .clickable { onPlay(episode) }
+fun EpisodeRow(episode: Episode, onPlay: (String) -> Unit) {
+    Card(
+        onClick = { onPlay(episode.number) },
+        modifier = Modifier.padding(horizontal = 20.dp),
+        colors = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceDim,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        ),
+        shape = RoundedCornerShape(CardCornerRadius)
     ) {
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
+                .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Ui.accentSoft),
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {
-                Text(episode.number, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Ui.accent)
+                Text(
+                    episode.number,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
             }
-            Spacer(Modifier.width(12.dp))
-            Column {
+            Spacer(Modifier.size(12.dp))
+            Column(Modifier.weight(1f)) {
                 Text(
                     "الحلقة ${episode.number}",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Ui.textPrimary
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
-                episode.title.takeIf { it.isNotBlank() }?.let {
+                if (episode.title.isNotBlank()) {
                     Text(
-                        it,
-                        fontSize = 12.sp,
-                        color = Ui.textSecondary,
+                        episode.title,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
             }
-            Spacer(Modifier.weight(1f))
-            Box(
-                Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Ui.accent)
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
-            ) {
-                Text("شاهدها", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-            }
+            Text(
+                "▶ تشغيل",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }
 
 @Composable
-fun InfoChip(text: String) {
-    if (text.isBlank()) return
-    Box(
-        Modifier
-            .padding(start = 8.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(Ui.accentSoft)
-            .padding(horizontal = 8.dp, vertical = 2.dp)
-    ) {
-        Text(text, fontSize = 11.sp, color = Ui.accent, fontWeight = FontWeight.Medium)
-    }
-}
-
-@Composable
-fun LoadingState(message: String) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .padding(40.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        CircularProgressIndicator(color = Ui.accent)
-        Text(message, color = Ui.textSecondary, fontSize = 14.sp)
-    }
-}
-
-@Composable
-fun ErrorState(message: String, onRetry: () -> Unit) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .padding(28.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Text("تعذّر إكمال الطلب", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Ui.textPrimary)
-        Text(message, color = Ui.textSecondary, fontSize = 14.sp, textAlign = TextAlign.Center)
-        Button(
-            onClick = onRetry,
-            colors = ButtonDefaults.buttonColors(containerColor = Ui.accent)
-        ) {
-            Text("إعادة المحاولة", color = Color.White)
-        }
-    }
-}
-
-@Composable
-fun EmptyState(iconRes: (@Composable () -> Unit)?, title: String, subtitle: String) {
+fun CenterState(title: String, subtitle: String) {
     Column(
         Modifier
             .fillMaxWidth()
@@ -712,56 +767,43 @@ fun EmptyState(iconRes: (@Composable () -> Unit)?, title: String, subtitle: Stri
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        iconRes?.invoke()
-        Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Ui.textPrimary)
+        Text(title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
         Text(
             subtitle,
-            fontSize = 13.sp,
-            color = Ui.textSecondary,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
     }
 }
 
 @Composable
-fun PosterCard(title: String, posterUrl: String?, badge: String = "", onClick: () -> Unit) {
+fun ErrorState(title: String, message: String, onRetry: () -> Unit) {
     Column(
-        Modifier
-            .width(120.dp)
-            .clickable { onClick() }
+        modifier = Modifier
+            .fillMaxSize()
+            .widthIn(max = 400.dp)
+            .padding(28.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Box {
-            AsyncImage(
-                model = posterUrl,
-                contentDescription = "غلاف $title",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(0.68f)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Ui.placeholder)
-            )
-            if (badge.isNotBlank()) {
-                Box(
-                    Modifier
-                        .align(Alignment.TopStart)
-                        .padding(6.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Ui.badge)
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                ) {
-                    Text(badge, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(90.dp))
+        Text(title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
         Text(
-            title,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = Ui.textPrimary,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
+            message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
         )
+        Button(
+            onClick = onRetry,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ),
+            shape = RoundedCornerShape(24.dp)
+        ) {
+            Text("إعادة المحاولة")
+        }
     }
 }

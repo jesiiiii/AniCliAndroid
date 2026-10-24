@@ -74,6 +74,7 @@ import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import dev.anicli.android.ui.theme.UchihaTheme
 import kotlinx.coroutines.delay
 import java.util.Locale
 
@@ -102,7 +103,7 @@ class PlayerActivity : ComponentActivity() {
             return
         }
         setContent {
-            MaterialTheme(colorScheme = Ui.light) {
+            UchihaTheme {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                     PlayerScreen(
                         animeId = animeId,
@@ -150,7 +151,17 @@ fun PlayerScreen(
     var playbackError by remember { mutableStateOf<String?>(null) }
     var fullscreen by remember { mutableStateOf(false) }
     var attempt by remember { mutableStateOf(0) }
+    var nextEpisodeNumber by remember { mutableStateOf<String?>(null) }
+    var autoAdvanced by remember { mutableStateOf(false) }
     val player = remember { ExoPlayer.Builder(context).build() }
+
+    LaunchedEffect(animeId, episodeNumber) {
+        nextEpisodeNumber = runCatching {
+            val episodes = SlayerApi.getAnimeWithEpisodes(animeId).episodes.sortedBy { it.number.toIntOrNull() ?: Int.MAX_VALUE }
+            val currentIndex = episodes.indexOfFirst { it.number == episodeNumber }
+            episodes.getOrNull(currentIndex + 1)?.number
+        }.getOrNull()
+    }
 
     // An expired or dead link is retried through a fresh resolve attempt.
     LaunchedEffect(attempt) {
@@ -160,7 +171,7 @@ fun PlayerScreen(
         val resolved = try {
             SlayerApi.resolveStreams(animeId, episodeNumber)
         } catch (e: Exception) {
-            resolveState = ResolveState(resolving = false, error = Ui.friendly(e, "تعذّر تجهيز الحلقة."))
+            resolveState = ResolveState(resolving = false, error = PlayerUi.friendly(e, "تعذّر تجهيز الحلقة."))
             return@LaunchedEffect
         }
         if (resolved.streams.isEmpty()) {
@@ -196,10 +207,30 @@ fun PlayerScreen(
             activeUrl = null
             return@LaunchedEffect
         }
+        val savedPosition = PlaybackProgress.get(context, animeId, episodeNumber)
+        val currentPosition = player.currentPosition.takeIf { it > 5_000L } ?: savedPosition
         player.setMediaItem(MediaItem.fromUri(url))
         player.prepare()
+        if (currentPosition > 0L) player.seekTo(currentPosition)
         player.playWhenReady = true
         playbackError = null
+    }
+
+    // Persist a checkpoint locally while watching and when playback reaches the end.
+    LaunchedEffect(player, animeId, episodeNumber) {
+        while (true) {
+            PlaybackProgress.save(
+                context,
+                animeId,
+                episodeNumber,
+                player.currentPosition,
+                player.duration.coerceAtLeast(0L)
+            )
+            if (player.playbackState == Player.STATE_ENDED) {
+                PlaybackProgress.save(context, animeId, episodeNumber, player.duration, player.duration)
+            }
+            delay(2_000)
+        }
     }
 
     LaunchedEffect(fullscreen) { onOrientation(fullscreen) }
@@ -213,11 +244,36 @@ fun PlayerScreen(
             }
         }
         val playbackListener = object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                val autoNextEnabled = context.getSharedPreferences("uchiha_settings", 0).getBoolean("auto_next", true)
+                if (playbackState == Player.STATE_ENDED && autoNextEnabled && !autoAdvanced) {
+                    val next = nextEpisodeNumber
+                    if (!next.isNullOrBlank()) {
+                        autoAdvanced = true
+                        PlaybackProgress.save(context, animeId, episodeNumber, player.currentPosition, player.duration.coerceAtLeast(0L))
+                        context.startActivity(PlayerActivity.intent(context, animeId, animeTitle, next))
+                        onFinish()
+                    }
+                }
+            }
+
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (isPlaying) {
                     activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 } else {
                     activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                }
+            }
+
+            override fun onPlayerError(error: PlaybackException) {
+                playbackError = when (error.errorCode) {
+                    PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+                    PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ->
+                        "انقطع الاتصال أثناء التشغيل. تحقق من الإنترنت ثم أعد المحاولة."
+                    PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED,
+                    PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED ->
+                        "صيغة الفيديو من هذا الخادم غير مدعومة. جرّب خادماً أو جودة أخرى."
+                    else -> "تعذّر تشغيل هذا الرابط. جرّب خادماً آخر أو اضغط إعادة المحاولة."
                 }
             }
         }
@@ -283,7 +339,7 @@ fun PlayerScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    CircularProgressIndicator(color = Ui.accent)
+                    CircularProgressIndicator(color = PlayerUi.accent)
                     Text("جارٍ تجهيز رابط المشاهدة...", color = Color(0xFFC9C2DC), fontSize = 14.sp)
                 }
             }
@@ -355,7 +411,7 @@ fun PlayerErrorBlock(title: String, message: String, onRetry: () -> Unit) {
         )
         Button(
             onClick = onRetry,
-            colors = ButtonDefaults.buttonColors(containerColor = Ui.accent)
+            colors = ButtonDefaults.buttonColors(containerColor = PlayerUi.accent)
         ) {
             Text("إعادة المحاولة", color = Color.White)
         }
@@ -496,7 +552,7 @@ fun PlayerControlBar(player: ExoPlayer, onFullscreen: () -> Unit) {
                             Modifier
                                 .align(Alignment.TopEnd)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(Ui.accent)
+                                .background(PlayerUi.accent)
                                 .padding(horizontal = 4.dp)
                         ) {
                             Text(
@@ -517,7 +573,7 @@ fun PlayerControlBar(player: ExoPlayer, onFullscreen: () -> Unit) {
                             text = {
                                 Text(
                                     if (option == 1f) "عادي (1x)" else "$option x",
-                                    color = if (option == playbackSpeed) Ui.accent else Color(0xFF2B2440)
+                                    color = if (option == playbackSpeed) PlayerUi.accent else Color(0xFF2B2440)
                                 )
                             },
                             onClick = {
@@ -559,8 +615,8 @@ fun PlayerControlBar(player: ExoPlayer, onFullscreen: () -> Unit) {
                     seeking = false
                 },
                 colors = SliderDefaults.colors(
-                    thumbColor = Ui.accent,
-                    activeTrackColor = Ui.accent,
+                    thumbColor = PlayerUi.accent,
+                    activeTrackColor = PlayerUi.accent,
                     inactiveTrackColor = Color(0xFF312A47)
                 ),
                 modifier = Modifier
@@ -591,11 +647,11 @@ fun QualityChipsRow(streams: List<StreamOption>, selectedIndex: Int, onSelect: (
                 val selected = index == selectedIndex
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = if (selected) Ui.accent else Color(0xFF1C1730),
+                    color = if (selected) PlayerUi.accent else Color(0xFF1C1730),
                     modifier = Modifier.clickable { onSelect(index) }
                 ) {
                     Text(
-                        stream.label,
+                        stream.quality.ifBlank { "تلقائي" },
                         color = if (selected) Color.White else Color(0xFFC9C2DC),
                         fontSize = 12.sp,
                         fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
@@ -604,5 +660,16 @@ fun QualityChipsRow(streams: List<StreamOption>, selectedIndex: Int, onSelect: (
                 }
             }
         }
+    }
+}
+
+/** Player-local palette: dark cinema surface, warm gold accents from the Uchiha scheme. */
+private object PlayerUi {
+    val accent = Color(0xFFD7A43B)
+
+    fun friendly(e: Throwable, fallback: String): String = when {
+        e is SlayerApi.ApiException -> e.message ?: fallback
+        e is java.io.IOException -> "تعذّر الاتصال بالخادم، تحقق من الإنترنت وأعد المحاولة."
+        else -> e.message ?: fallback
     }
 }

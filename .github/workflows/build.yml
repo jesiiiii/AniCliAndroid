@@ -1,8 +1,9 @@
 name: build APK
+# Verify the latest UI redesign commit on every branch update.
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, feature/safe-playback-improvements ]
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
