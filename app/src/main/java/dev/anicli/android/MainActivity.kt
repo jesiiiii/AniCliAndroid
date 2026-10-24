@@ -68,6 +68,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -86,6 +87,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import java.io.IOException
 
 object Ui {
@@ -366,8 +368,23 @@ fun SettingsScreen(
 fun HomeScreen(onOpenSearch: () -> Unit, onOpenFavorites: () -> Unit, onOpenSettings: () -> Unit, onHome: () -> Unit, onOpenAnime: (Anime) -> Unit) {
     val vm: HomeViewModel = viewModel()
     val context = LocalContext.current
-    var favorites by remember { mutableStateOf(FavoriteAnimeStore.getAll(context)) }
-    LaunchedEffect(Unit) { favorites = FavoriteAnimeStore.getAll(context) }
+    var favorites by remember { mutableStateOf(FavoriteAnimeStore.getAll(context).sortedBy { it.title.lowercase() }) }
+    var featuredRotation by rememberSaveable { mutableStateOf((System.currentTimeMillis() / 172800000L).toInt()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            val nextSlot = (System.currentTimeMillis() / 172800000L + 1L) * 172800000L
+            delay((nextSlot - System.currentTimeMillis()).coerceAtLeast(1000L))
+            featuredRotation = (System.currentTimeMillis() / 172800000L).toInt()
+        }
+    }
+    val featuredOrder = remember(vm.trending, featuredRotation) {
+        val candidates = vm.trending.take(5)
+        if (candidates.isEmpty()) candidates else {
+            val offset = Math.floorMod(featuredRotation, candidates.size)
+            candidates.drop(offset) + candidates.take(offset)
+        }
+    }
+    LaunchedEffect(Unit) { favorites = FavoriteAnimeStore.getAll(context).sortedBy { it.title.lowercase() } }
     LaunchedEffect(Unit) {
         if (vm.latest.isEmpty() && vm.trending.isEmpty() && vm.topRated.isEmpty()) vm.load()
     }
@@ -433,9 +450,16 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenFavorites: () -> Unit, onOpenSett
                     verticalArrangement = Arrangement.spacedBy(18.dp),
                     contentPadding = PaddingValues(bottom = 18.dp)
                 ) {
-                    if (vm.trending.isNotEmpty()) {
+                    if (featuredOrder.isNotEmpty()) {
                         item {
-                            FeaturedAnimeCard(anime = vm.trending.first(), onClick = { onOpenAnime(vm.trending.first()) })
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(featuredOrder, key = { "featured-" + it.id }) { anime ->
+                                    FeaturedAnimeCard(anime = anime, onClick = { onOpenAnime(anime) })
+                                }
+                            }
                         }
                     }
                     item {
@@ -479,7 +503,8 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenFavorites: () -> Unit, onOpenSett
                                         title = ep.animeTitle,
                                         posterUrl = ep.posterUrl,
                                         badge = "حلقة ${ep.episodeNumber}",
-                                        onClick = { onOpenAnime(Anime(id = ep.animeId, title = ep.animeTitle)) }
+                                        rating = ep.rating,
+                                        onClick = { onOpenAnime(Anime(id = ep.animeId, title = ep.animeTitle, rating = ep.rating)) }
                                     )
                                 }
                             }
@@ -523,7 +548,7 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenFavorites: () -> Unit, onOpenSett
 @Composable
 fun FeaturedAnimeCard(anime: Anime, onClick: () -> Unit) {
     Box(
-        Modifier.padding(horizontal = 16.dp).fillMaxWidth().height(218.dp)
+        Modifier.width(320.dp).height(218.dp)
             .clip(RoundedCornerShape(26.dp)).background(Color(0xFF201747)).clickable(onClick = onClick)
     ) {
         AsyncImage(model = anime.posterUrl, contentDescription = null, contentScale = ContentScale.Crop,
@@ -608,6 +633,7 @@ fun HomeGridHorizontal(list: List<Anime>, keyPrefix: String, onOpenAnime: (Anime
             PosterCard(
                 title = anime.title,
                 posterUrl = anime.posterUrl,
+                rating = anime.rating,
                 onClick = { onOpenAnime(anime) }
             )
         }
@@ -673,7 +699,7 @@ fun SearchScreen(onBack: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 items(vm.results, key = { it.id + "s" }) { anime ->
-                    PosterCard(title = anime.title, posterUrl = anime.posterUrl) {
+                    PosterCard(title = anime.title, posterUrl = anime.posterUrl, rating = anime.rating) {
                         onOpenAnime(anime)
                     }
                 }
@@ -952,7 +978,7 @@ fun EmptyState(iconRes: (@Composable () -> Unit)?, title: String, subtitle: Stri
 }
 
 @Composable
-fun PosterCard(title: String, posterUrl: String?, badge: String = "", onClick: () -> Unit) {
+fun PosterCard(title: String, posterUrl: String?, badge: String = "", rating: String = "", onClick: () -> Unit) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
@@ -980,6 +1006,20 @@ fun PosterCard(title: String, posterUrl: String?, badge: String = "", onClick: (
                     .clip(RoundedCornerShape(14.dp))
                     .background(Ui.placeholder)
             )
+            if (rating.isNotBlank()) {
+                Box(
+                    Modifier.align(Alignment.BottomStart).fillMaxWidth().height(38.dp)
+                        .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xD9100D1A))))
+                ) {
+                    Row(
+                        Modifier.align(Alignment.BottomStart).padding(horizontal = 8.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Star, contentDescription = null, tint = Ui.star, modifier = Modifier.size(14.dp))
+                        Text(rating, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 3.dp))
+                    }
+                }
+            }
             if (badge.isNotBlank()) {
                 Box(
                     Modifier
