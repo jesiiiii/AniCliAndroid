@@ -390,11 +390,7 @@ fun SettingsRow(icon: androidx.compose.ui.graphics.vector.ImageVector, title: St
 @Composable
 fun HomeScreen(onOpenSearch: () -> Unit, onOpenFavorites: () -> Unit, onOpenSettings: () -> Unit, onHome: () -> Unit, onOpenAnime: (Anime) -> Unit) {
     val vm: HomeViewModel = viewModel()
-    val context = LocalContext.current
-    var favorites by remember { mutableStateOf(FavoriteAnimeStore.getAll(context).sortedBy { it.title.lowercase() }) }
-
     LaunchedEffect(Unit) {
-        favorites = FavoriteAnimeStore.getAll(context).sortedBy { it.title.lowercase() }
         if (vm.latest.isEmpty() && vm.trending.isEmpty() && vm.topRated.isEmpty()) vm.load()
     }
 
@@ -402,15 +398,15 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenFavorites: () -> Unit, onOpenSett
         Modifier.fillMaxSize().statusBarsPadding().background(Ui.background)
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(start = 20.dp, end = 16.dp, top = 12.dp, bottom = 14.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f)) {
-                Text("اكتشف عالم الأنمي", fontSize = 25.sp, lineHeight = 31.sp, fontWeight = FontWeight.ExtraBold, color = Ui.textPrimary)
-                Text("أعمال جديدة ومفضّلة، في مكان واحد", fontSize = 12.sp, color = Ui.textSecondary, modifier = Modifier.padding(top = 3.dp))
+                Text("اكتشف الأنمي", fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.ExtraBold, color = Ui.textPrimary)
+                Text("أعمال تستحق المشاهدة", fontSize = 13.sp, color = Ui.textSecondary, modifier = Modifier.padding(top = 4.dp))
             }
             Box(
-                Modifier.size(46.dp).clip(RoundedCornerShape(16.dp)).background(Ui.accent),
+                Modifier.size(46.dp).clip(RoundedCornerShape(15.dp)).background(Ui.accent),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Default.Favorite, contentDescription = "Uchiha Anime", tint = Color.White, modifier = Modifier.size(24.dp))
@@ -418,27 +414,33 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenFavorites: () -> Unit, onOpenSett
         }
 
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(50.dp)
-                .clip(RoundedCornerShape(16.dp)).background(Color.White)
+            Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 10.dp)
+                .height(50.dp).clip(RoundedCornerShape(15.dp)).background(Color.White)
                 .clickable { onOpenSearch() }.padding(horizontal = 15.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(Icons.Default.Search, contentDescription = "بحث", tint = Ui.textSecondary)
-            Text("ابحث عن اسم الأنمي...", modifier = Modifier.weight(1f).padding(horizontal = 10.dp), color = Ui.textSecondary, fontSize = 14.sp)
-            Box(Modifier.clip(RoundedCornerShape(9.dp)).background(Ui.accentSoft).padding(horizontal = 9.dp, vertical = 6.dp)) {
-                Text("بحث", color = Ui.accent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-            }
+            Text("ابحث عن أنمي...", modifier = Modifier.weight(1f).padding(horizontal = 10.dp), color = Ui.textSecondary, fontSize = 14.sp)
+            Icon(Icons.Default.Search, contentDescription = null, tint = Ui.accent)
         }
 
         when {
-            vm.loading && vm.latest.isEmpty() && vm.trending.isEmpty() -> {
-                Column(Modifier.weight(1f).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            vm.loading && vm.trending.isEmpty() -> {
+                Column(Modifier.weight(1f).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     repeat(4) {
-                        Box(Modifier.fillMaxWidth().height(112.dp).clip(RoundedCornerShape(18.dp)).background(Ui.placeholder))
+                        Row(Modifier.fillMaxWidth().height(116.dp).clip(RoundedCornerShape(18.dp)).background(Color.White).padding(8.dp)) {
+                            Box(Modifier.size(100.dp).clip(RoundedCornerShape(12.dp)).background(Ui.placeholder))
+                            Column(Modifier.weight(1f).padding(start = 10.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                                Box(Modifier.width(62.dp).height(20.dp).clip(RoundedCornerShape(20.dp)).background(Ui.placeholder))
+                                Box(Modifier.fillMaxWidth().height(16.dp).clip(RoundedCornerShape(5.dp)).background(Ui.placeholder))
+                                Box(Modifier.fillMaxWidth(0.8f).height(12.dp).clip(RoundedCornerShape(5.dp)).background(Ui.placeholder))
+                                Box(Modifier.fillMaxWidth(0.65f).height(12.dp).clip(RoundedCornerShape(5.dp)).background(Ui.placeholder))
+                            }
+                        }
                     }
                 }
             }
-            vm.error != null && vm.latest.isEmpty() && vm.trending.isEmpty() && vm.topRated.isEmpty() -> {
+            vm.error != null && vm.trending.isEmpty() && vm.topRated.isEmpty() -> {
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                     ErrorState(message = vm.error.orEmpty()) { vm.load() }
                 }
@@ -446,67 +448,32 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenFavorites: () -> Unit, onOpenSett
             else -> {
                 LazyColumn(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(15.dp),
-                    contentPadding = PaddingValues(top = 20.dp, bottom = 22.dp)
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 8.dp, bottom = 24.dp)
                 ) {
                     item {
-                        Row(
-                            Modifier.fillMaxWidth().padding(horizontal = 20.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 2.dp)) {
                             Column(Modifier.weight(1f)) {
-                                Text("الرائج الآن", fontSize = 24.sp, lineHeight = 29.sp, fontWeight = FontWeight.ExtraBold, color = Ui.textPrimary)
-                                Text("أنميات يكتشفها الجميع", fontSize = 12.sp, color = Ui.textSecondary, modifier = Modifier.padding(top = 3.dp))
+                                Text("الأنميات الرائجة", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Ui.textPrimary)
+                                Text("الأكثر شعبية الآن", fontSize = 12.sp, color = Ui.textSecondary, modifier = Modifier.padding(top = 3.dp))
                             }
-                            Box(Modifier.clip(RoundedCornerShape(10.dp)).background(Ui.accentSoft).padding(horizontal = 10.dp, vertical = 7.dp)) {
-                                Text("TRENDING", color = Ui.accent, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 0.7.sp)
+                            Box(Modifier.clip(RoundedCornerShape(9.dp)).background(Ui.accentSoft).padding(horizontal = 10.dp, vertical = 6.dp)) {
+                                Text("TRENDING", color = Ui.accent, fontSize = 10.sp, fontWeight = FontWeight.Black)
                             }
                         }
                     }
-
-                    if (vm.trending.isNotEmpty()) {
-                        items(vm.trending.take(12), key = { "trend-list-" + it.id }) { anime ->
+                    val popular = vm.trending.ifEmpty { vm.topRated }
+                    items(popular, key = { "anime-list-" + it.id }) { anime ->
+                        AnimeInfoCard(anime = anime, onClick = { onOpenAnime(anime) })
+                    }
+                    if (popular.isEmpty() && vm.latest.isNotEmpty()) {
+                        item { HomeSectionTitle("أحدث الحلقات") }
+                        items(vm.latest.distinctBy { it.animeId }, key = { "latest-fallback-" + it.animeId }) { ep ->
                             AnimeInfoCard(
-                                anime = anime,
-                                onClick = { onOpenAnime(anime) }
+                                anime = Anime(id = ep.animeId, title = ep.animeTitle, posterUrl = ep.posterUrl, rating = ep.rating),
+                                onClick = { onOpenAnime(Anime(id = ep.animeId, title = ep.animeTitle, posterUrl = ep.posterUrl, rating = ep.rating))
                             )
                         }
-                    }
-
-                    if (vm.latest.isNotEmpty()) {
-                        item { HomeSectionTitle("أحدث الحلقات") }
-                        item {
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                items(vm.latest.distinctBy { it.animeId }, key = { "latest-" + it.animeId + "-" + it.episodeNumber }) { ep ->
-                                    PosterCard(
-                                        title = ep.animeTitle,
-                                        posterUrl = ep.posterUrl,
-                                        badge = "حلقة ${ep.episodeNumber}",
-                                        rating = ep.rating,
-                                        onClick = { onOpenAnime(Anime(id = ep.animeId, title = ep.animeTitle, rating = ep.rating)) }
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    if (favorites.isNotEmpty()) {
-                        item { HomeSectionTitle("قائمتك المفضّلة") }
-                        item { HomeGridHorizontal(favorites, "fav-home-", onOpenAnime) }
-                    }
-
-                    if (vm.topRated.isNotEmpty()) {
-                        item { HomeSectionTitle("الأعلى تقييماً") }
-                        item { HomeGridHorizontal(vm.topRated, "rated-home-", onOpenAnime) }
-                    }
-
-                    val catalog = (vm.trending + vm.topRated).distinctBy { it.id }
-                    if (catalog.isNotEmpty()) {
-                        item { HomeSectionTitle("تصفّح حسب التصنيف") }
-                        item { CategoryCapsulesRow(catalog, onSelect = { onOpenSearch() }) }
                     }
                 }
             }
@@ -653,53 +620,54 @@ fun HomeSectionTitle(title: String) {
 
 @Composable
 fun AnimeInfoCard(anime: Anime, onClick: () -> Unit) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.985f else 1f,
+        animationSpec = spring(dampingRatio = 0.72f, stiffness = 500f),
+        label = "AnimeCardScale"
+    )
     Row(
-        Modifier
-            .fillMaxWidth()
-            .height(112.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color.White)
-            .clickable(onClick = onClick)
-            .padding(9.dp),
+        Modifier.fillMaxWidth().height(126.dp)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .clip(RoundedCornerShape(18.dp)).background(Color.White)
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         AsyncImage(
             model = anime.posterUrl,
             contentDescription = "غلاف ${anime.title}",
             contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .width(68.dp)
-                .fillMaxSize()
-                .clip(RoundedCornerShape(11.dp))
-                .background(Ui.placeholder)
+            modifier = Modifier.width(96.dp).fillMaxSize()
+                .clip(RoundedCornerShape(12.dp)).background(Ui.placeholder)
         )
         Column(
-            Modifier.weight(1f).padding(start = 9.dp),
+            Modifier.weight(1f).padding(start = 11.dp, end = 5.dp),
             verticalArrangement = Arrangement.spacedBy(5.dp)
         ) {
-            Text(
-                anime.title,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = Ui.textPrimary,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            if (anime.rating.isNotBlank()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Star, contentDescription = null, tint = Ui.star, modifier = Modifier.size(13.dp))
-                    Text(anime.rating, fontSize = 11.sp, color = Ui.textSecondary, modifier = Modifier.padding(start = 3.dp))
-                }
+            Row(
+                Modifier.clip(RoundedCornerShape(30.dp)).background(Ui.accentSoft)
+                    .padding(horizontal = 7.dp, vertical = 3.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Star, contentDescription = null, tint = Ui.accent, modifier = Modifier.size(14.dp))
+                Text(
+                    anime.rating.ifBlank { "غير مصنّف" },
+                    color = Ui.accent, fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(start = 3.dp)
+                )
             }
             Text(
-                anime.genres.ifBlank { anime.animeType }.ifBlank { "أنمي" },
-                fontSize = 10.sp,
-                color = Ui.textSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                anime.title, fontSize = 15.sp, lineHeight = 19.sp,
+                fontWeight = FontWeight.Bold, color = Ui.textPrimary,
+                maxLines = 2, overflow = TextOverflow.Ellipsis
             )
-            Text("عرض التفاصيل  ›", fontSize = 10.sp, color = Ui.accent, fontWeight = FontWeight.Bold)
+            Text(
+                anime.description?.takeIf { it.isNotBlank() } ?: anime.genres.ifBlank { anime.animeType.ifBlank { "اكتشف التفاصيل والحلقات" } },
+                fontSize = 11.sp, lineHeight = 15.sp, color = Ui.textSecondary,
+                maxLines = 2, overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -799,115 +767,106 @@ fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: ()
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var expanded by remember { mutableStateOf(false) }
+
     LaunchedEffect(animeId) {
+        loading = true
+        error = null
         try {
             data = SlayerApi.getAnimeWithEpisodes(animeId)
-            loading = false
         } catch (e: Exception) {
             error = Ui.friendly(e, "تعذّر تحميل التفاصيل.")
+        } finally {
             loading = false
         }
     }
-    Column(
-        Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .background(Ui.background)
-    ) {
+
+    Column(Modifier.fillMaxSize().statusBarsPadding().background(Ui.background)) {
         Row(
-            Modifier.fillMaxWidth(),
+            Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "رجوع", tint = Ui.textPrimary)
             }
-            Text("تفاصيل الأنمي", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Ui.textPrimary)
+            Text("تفاصيل الأنمي", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Ui.textPrimary)
         }
+
         when {
-            loading -> LoadingState("جارٍ تحميل التفاصيل والحلقات...")
-            error != null -> ErrorState(
-                message = error.orEmpty(),
-                onRetry = { error = null; loading = true }
-            )
+            loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingState("جارٍ تحميل التفاصيل...") }
+            error != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                ErrorState(message = error.orEmpty()) {
+                    loading = true
+                    error = null
+                }
+            }
             data == null -> EmptyState(null, "لا توجد بيانات", "تعذّر العثور على هذا الأنمي في المصدر.")
             else -> {
                 val info = data!!
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    contentPadding = PaddingValues(bottom = 28.dp)
+                ) {
                     item {
-                        Box(
-                            Modifier.fillMaxWidth().height(300.dp)
-                                .clip(RoundedCornerShape(bottomStart = 26.dp, bottomEnd = 26.dp))
-                                .background(Color(0xFF202026))
+                        AsyncImage(
+                            model = info.anime.posterUrl,
+                            contentDescription = "غلاف ${info.anime.title}",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxWidth().height(300.dp)
+                                .clip(RoundedCornerShape(bottomStart = 22.dp, bottomEnd = 22.dp))
+                                .background(Ui.placeholder)
+                        )
+                    }
+                    item {
+                        Column(
+                            Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            AsyncImage(
-                                model = info.anime.posterUrl,
-                                contentDescription = "غلاف الأنمي",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize().graphicsLayer { alpha = 0.78f }
+                            Text(
+                                info.anime.title, fontSize = 25.sp, lineHeight = 31.sp,
+                                fontWeight = FontWeight.ExtraBold, color = Ui.textPrimary,
+                                textAlign = TextAlign.Center
                             )
-                            Box(
-                                Modifier.fillMaxSize().background(
-                                    Brush.verticalGradient(listOf(Color(0x22000000), Color(0x44000000), Color(0xF7FFFFFF)))
-                                )
-                            )
-                            Column(
-                                Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp)
+                            if (info.anime.titleEn.isNotBlank() && info.anime.titleEn != info.anime.title) {
+                                Text(info.anime.titleEn, fontSize = 13.sp, color = Ui.textSecondary, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 4.dp))
+                            }
+                            Row(
+                                Modifier.padding(top = 10.dp).clip(RoundedCornerShape(30.dp))
+                                    .background(Color.White).padding(horizontal = 12.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(verticalAlignment = Alignment.Bottom) {
-                                    Spacer(Modifier.weight(1f))
-                                    Column(horizontalAlignment = Alignment.End) {
-                                        Text("UCHIHA ANIME", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Black)
-                                        Text("تفاصيل العمل", color = Color.White, fontSize = 12.sp)
-                                    }
-                                }
-                                Row(verticalAlignment = Alignment.Bottom) {
-                                    AsyncImage(
-                                        model = info.anime.posterUrl,
-                                        contentDescription = "غلاف الأنمي",
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.width(112.dp).aspectRatio(0.68f)
-                                            .clip(RoundedCornerShape(16.dp)).background(Ui.placeholder)
-                                    )
-                                    Column(Modifier.weight(1f).padding(start = 14.dp, bottom = 2.dp)) {
+                                Icon(Icons.Default.Star, contentDescription = null, tint = Ui.star, modifier = Modifier.size(18.dp))
                                 Text(
-                                    info.anime.title,
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Ui.textPrimary
+                                    info.anime.rating.ifBlank { "غير متاح" },
+                                    fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Ui.textPrimary,
+                                    modifier = Modifier.padding(start = 5.dp)
                                 )
-                                TextButton(onClick = {
-                                    isFavorite = FavoriteAnimeStore.toggle(context, info.anime)
-                                }) {
-                                    Text(if (isFavorite) "★ إزالة من المفضلة" else "☆ إضافة للمفضلة", color = Ui.accent)
-                                }
-                                info.anime.titleEn.takeIf { it.isNotBlank() && it != info.anime.title }?.let {
-                                    Text(it, fontSize = 13.sp, color = Ui.textSecondary)
-                                }
-                                Spacer(Modifier.height(6.dp))
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    if (info.anime.rating.isNotBlank()) {
-                                        Icon(Icons.Default.Star, null, Modifier.size(16.dp), tint = Ui.star)
-                                        Text(
-                                            " ${info.anime.rating}",
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = Ui.textPrimary
-                                        )
-                                    }
-                                    InfoChip(info.anime.animeType)
-                                }
-                                if (info.anime.genres.isNotBlank()) {
-                                    Spacer(Modifier.height(4.dp))
-                                    Text(
-                                        info.anime.genres,
-                                        fontSize = 12.sp,
-                                        color = Ui.textSecondary,
-                                        maxLines = 3,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    }
+                                if (info.anime.animeType.isNotBlank()) {
+                                    Text("  •  ${info.anime.animeType}", fontSize = 12.sp, color = Ui.textSecondary)
                                 }
                             }
+                            TextButton(onClick = {
+                                isFavorite = FavoriteAnimeStore.toggle(context, info.anime)
+                            }, modifier = Modifier.padding(top = 2.dp)) {
+                                Icon(Icons.Default.Favorite, contentDescription = null, tint = Ui.accent, modifier = Modifier.size(18.dp))
+                                Text(if (isFavorite) "إزالة من المفضلة" else "إضافة إلى المفضلة", color = Ui.accent, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                    if (info.anime.description?.isNotBlank() == true) {
+                        item {
+                            Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+                                Text("القصة", fontSize = 19.sp, fontWeight = FontWeight.ExtraBold, color = Ui.textPrimary)
+                                Spacer(Modifier.height(7.dp))
+                                Text(
+                                    info.anime.description.orEmpty(),
+                                    fontSize = 14.sp, lineHeight = 22.sp, color = Ui.textSecondary,
+                                    maxLines = if (expanded) 100 else 4,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                TextButton(onClick = { expanded = !expanded }) {
+                                    Text(if (expanded) "عرض أقل" else "قراءة المزيد", color = Ui.accent)
+                                }
                             }
                         }
                     }
@@ -915,54 +874,32 @@ fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: ()
                         Button(
                             onClick = { info.episodes.firstOrNull()?.let { onSelectEpisode(it.number) } },
                             enabled = info.episodes.isNotEmpty(),
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(50.dp),
-                            shape = RoundedCornerShape(28.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC8102E))
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(52.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Ui.accent)
                         ) {
                             Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White)
                             Spacer(Modifier.width(8.dp))
-                            Text("تشغيل الحلقات", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                        }
-                    }
-                    if (info.anime.description?.isNotBlank() == true) {
-                        item {
-                            Column(Modifier.padding(horizontal = 16.dp)) {
-                                Text(
-                                    info.anime.description.orEmpty(),
-                                    fontSize = 14.sp,
-                                    color = Ui.textSecondary,
-                                    maxLines = if (expanded) 60 else 4,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                TextButton(onClick = { expanded = !expanded }) {
-                                    Text(if (expanded) "إخفاء" else "المزيد", color = Ui.accent)
-                                }
-                            }
+                            Text("ابدأ المشاهدة", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         }
                     }
                     item {
-                        Text(
-                            "الحلقات (${info.episodes.size})",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Ui.textPrimary,
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("الحلقات", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = Ui.textPrimary)
+                            Spacer(Modifier.weight(1f))
+                            Text("${info.episodes.size} حلقة", fontSize = 12.sp, color = Ui.textSecondary)
+                        }
                     }
                     if (info.episodes.isEmpty()) {
-                        item {
-                            EmptyState(
-                                null,
-                                "لا توجد حلقات",
-                                "قد لا تكون الحلقات متاحة بعد في المصدر المختار."
-                            )
-                        }
+                        item { EmptyState(null, "لا توجد حلقات", "قد لا تكون الحلقات متاحة بعد في المصدر المختار.") }
                     } else {
                         items(info.episodes, key = { ep -> ep.number + "-" + info.anime.id }) { ep ->
                             EpisodeCard(episode = ep, onPlay = { onSelectEpisode(ep.number) })
                         }
                     }
-                    item { Spacer(Modifier.height(30.dp)) }
                 }
             }
         }
