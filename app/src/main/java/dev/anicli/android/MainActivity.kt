@@ -3,7 +3,17 @@ package dev.anicli.android
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -53,6 +63,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -198,30 +209,43 @@ fun UchihaApp(openPlayer: (String, String, String) -> Unit) {
     var screen by rememberSaveable { mutableStateOf("home") }
     var selectedAnimeId by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedAnimeTitle by rememberSaveable { mutableStateOf("") }
+    val destination = selectedAnimeId?.let { "details:$it" } ?: screen
 
-    if (selectedAnimeId != null) {
-        DetailsScreen(
-            animeId = selectedAnimeId!!,
-            onSelectEpisode = { number -> openPlayer(selectedAnimeId!!, selectedAnimeTitle, number) },
-            onBack = {
-                selectedAnimeId = null
-                if (screen == "details") screen = "home"
+    AnimatedContent(
+        targetState = destination,
+        transitionSpec = {
+            (slideInHorizontally(
+                animationSpec = spring(dampingRatio = 0.88f, stiffness = 420f),
+                initialOffsetX = { width -> width / 7 }
+            ) + fadeIn(animationSpec = spring(stiffness = 500f))) togetherWith
+                (slideOutHorizontally(
+                    animationSpec = spring(dampingRatio = 0.92f, stiffness = 500f),
+                    targetOffsetX = { width -> -width / 12 }
+                ) + fadeOut(animationSpec = spring(stiffness = 500f)))
+        },
+        label = "UchihaScreenTransition"
+    ) { target ->
+        when {
+            target.startsWith("details:") -> {
+                val animeId = target.removePrefix("details:")
+                DetailsScreen(
+                    animeId = animeId,
+                    onSelectEpisode = { number -> openPlayer(animeId, selectedAnimeTitle, number) },
+                    onBack = {
+                        selectedAnimeId = null
+                        screen = "home"
+                    }
+                )
             }
-        )
-        return
-    }
-    if (screen == "search") {
-        SearchScreen(onBack = { screen = "home" }) { anime ->
-            selectedAnimeId = anime.id
-            selectedAnimeTitle = anime.title
+            target == "search" -> SearchScreen(onBack = { screen = "home" }) { anime ->
+                selectedAnimeId = anime.id
+                selectedAnimeTitle = anime.title
+            }
+            else -> HomeScreen(onOpenSearch = { screen = "search" }) { anime ->
+                selectedAnimeId = anime.id
+                selectedAnimeTitle = anime.title
+            }
         }
-        return
-    }
-    HomeScreen(
-        onOpenSearch = { screen = "search" }
-    ) { anime ->
-        selectedAnimeId = anime.id
-        selectedAnimeTitle = anime.title
     }
 }
 
@@ -740,10 +764,21 @@ fun EmptyState(iconRes: (@Composable () -> Unit)?, title: String, subtitle: Stri
 
 @Composable
 fun PosterCard(title: String, posterUrl: String?, badge: String = "", onClick: () -> Unit) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.965f else 1f,
+        animationSpec = spring(dampingRatio = 0.58f, stiffness = 520f),
+        label = "PosterPressScale"
+    )
     Column(
         Modifier
             .width(120.dp)
-            .clickable { onClick() }
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clickable(interactionSource = interactionSource, indication = null) { onClick() }
     ) {
         Box {
             AsyncImage(
