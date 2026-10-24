@@ -244,7 +244,8 @@ fun PlayerScreen(
         }
         val playbackListener = object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_ENDED && !autoAdvanced) {
+                val autoNextEnabled = context.getSharedPreferences("uchiha_settings", 0).getBoolean("auto_next", true)
+                if (playbackState == Player.STATE_ENDED && autoNextEnabled && !autoAdvanced) {
                     val next = nextEpisodeNumber
                     if (!next.isNullOrBlank()) {
                         autoAdvanced = true
