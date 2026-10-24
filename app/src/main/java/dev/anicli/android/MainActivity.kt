@@ -805,21 +805,34 @@ fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: ()
                 val info = data!!
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     item {
-                        Row(
-                            Modifier.padding(horizontal = 16.dp),
-                            verticalAlignment = Alignment.Top
+                        Box(
+                            Modifier.fillMaxWidth().height(300.dp)
+                                .clip(RoundedCornerShape(bottomStart = 26.dp, bottomEnd = 26.dp))
+                                .background(Color(0xFF202026))
                         ) {
                             AsyncImage(
                                 model = info.anime.posterUrl,
                                 contentDescription = "غلاف الأنمي",
                                 contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .width(120.dp)
-                                    .aspectRatio(0.68f)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(Ui.placeholder)
+                                modifier = Modifier.fillMaxSize().graphicsLayer { alpha = 0.78f }
                             )
-                            Column(Modifier.padding(start = 14.dp)) {
+                            Box(
+                                Modifier.fillMaxSize().background(
+                                    Brush.verticalGradient(listOf(Color(0x22000000), Color(0x44000000), Color(0xF7FFFFFF)))
+                                )
+                            )
+                            Row(
+                                Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(16.dp),
+                                verticalAlignment = Alignment.Bottom
+                            ) {
+                                AsyncImage(
+                                    model = info.anime.posterUrl,
+                                    contentDescription = "غلاف الأنمي",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.width(112.dp).aspectRatio(0.68f)
+                                        .clip(RoundedCornerShape(16.dp)).background(Ui.placeholder)
+                                )
+                                Column(Modifier.weight(1f).padding(start = 14.dp, bottom = 2.dp)) {
                                 Text(
                                     info.anime.title,
                                     fontSize = 20.sp,
