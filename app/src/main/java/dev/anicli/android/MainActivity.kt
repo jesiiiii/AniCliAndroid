@@ -342,7 +342,7 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                             )
                         }
                         item {
-                            HomeGridHorizontal(vm.trending, "t")
+                            HomeGridHorizontal(vm.trending, "t", onOpenAnime)
                         }
                     }
                     if (vm.topRated.isNotEmpty()) {
@@ -356,7 +356,7 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                             )
                         }
                         item {
-                            HomeGridHorizontal(vm.topRated, "r")
+                            HomeGridHorizontal(vm.topRated, "r", onOpenAnime)
                         }
                     }
                     item { Spacer(Modifier.height(30.dp)) }
@@ -378,7 +378,7 @@ fun HomeSectionTitle(title: String) {
 }
 
 @Composable
-fun HomeGridHorizontal(list: List<Anime>, keyPrefix: String) {
+fun HomeGridHorizontal(list: List<Anime>, keyPrefix: String, onOpenAnime: (Anime) -> Unit) {
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
