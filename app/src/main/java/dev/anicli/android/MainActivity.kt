@@ -483,33 +483,6 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenFavorites: () -> Unit, onOpenSett
 }
 
 @Composable
-fun FeaturedAnimeCard(anime: Anime, onClick: () -> Unit) {
-    Box(
-        Modifier.width(320.dp).height(226.dp)
-            .clip(RoundedCornerShape(22.dp)).background(Color(0xFFC8102E)).clickable(onClick = onClick)
-    ) {
-        AsyncImage(model = anime.posterUrl, contentDescription = null, contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize().graphicsLayer { alpha = 0.42f })
-        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color(0xDD101014), Color(0x66C8102E), Color(0x99101014)))))
-        Column(Modifier.align(Alignment.CenterStart).padding(20.dp).fillMaxWidth(0.76f), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-            Box(Modifier.clip(RoundedCornerShape(50)).background(Color(0xFFFFE3E6)).padding(horizontal = 10.dp, vertical = 5.dp)) {
-                Text("اختيارنا لك", color = Color(0xFFB30C26), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-            }
-            Text(anime.title, color = Color.White, fontSize = 23.sp, lineHeight = 29.sp, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Text("اكتشف التفاصيل والحلقات المتاحة", color = Color(0xFFE6E1F7), fontSize = 12.sp)
-            Row(Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White).clickable(onClick = onClick).padding(horizontal = 13.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Ui.accent, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(4.dp))
-                Text("استكشف الأنمي", color = Ui.accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-        Box(Modifier.align(Alignment.TopEnd).padding(14.dp).clip(RoundedCornerShape(12.dp)).background(Color(0x55FFFFFF)).padding(horizontal = 9.dp, vertical = 6.dp)) {
-            Text("UCHIHA ANIME", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Black)
-        }
-    }
-}
-
-@Composable
 fun HomeBottomBar(
     onHome: () -> Unit,
     onSearch: () -> Unit,
@@ -546,46 +519,6 @@ fun BottomBarItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: 
     ) {
         Icon(icon, contentDescription = label, tint = if (selected) Color.White else Ui.textSecondary, modifier = Modifier.size(20.dp))
         Text(label, color = if (selected) Color.White else Ui.textSecondary, fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
-    }
-}
-
-@Composable
-fun CategoryCapsulesRow(items: List<Anime>, onSelect: (String) -> Unit) {
-    val categories = remember(items) {
-        items.flatMap { anime ->
-            anime.genres.split(",", "،", "/", "|", "؛").map { it.trim() }
-        }.filter { it.isNotBlank() }.distinct().take(14)
-            .ifEmpty { listOf("أكشن", "مغامرات", "كوميديا", "دراما", "خيال", "غموض") }
-    }
-    LazyRow(
-        contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(7.dp)
-    ) {
-        items(categories, key = { "genre-" + it }) { genre ->
-            val cover = items.firstOrNull { it.genres.contains(genre, ignoreCase = true) }?.posterUrl
-                ?: items.firstOrNull()?.posterUrl
-            Box(
-                Modifier.width(104.dp).height(54.dp).clip(RoundedCornerShape(12.dp))
-                    .clickable { onSelect(genre) }.background(Color(0xFF252036))
-            ) {
-                AsyncImage(
-                    model = cover,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize().graphicsLayer { alpha = 0.48f }
-                )
-                Box(Modifier.fillMaxSize().background(Color(0x660D0B14)))
-                Text(
-                    genre,
-                    color = Color.White,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.align(Alignment.Center).padding(horizontal = 5.dp)
-                )
-            }
-        }
     }
 }
 
@@ -667,23 +600,6 @@ fun AnimeInfoCard(anime: Anime, onClick: () -> Unit) {
                 anime.description?.takeIf { it.isNotBlank() } ?: anime.genres.ifBlank { anime.animeType.ifBlank { "اكتشف التفاصيل والحلقات" } },
                 fontSize = 11.sp, lineHeight = 15.sp, color = Ui.textSecondary,
                 maxLines = 2, overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-@Composable
-fun HomeGridHorizontal(list: List<Anime>, keyPrefix: String, onOpenAnime: (Anime) -> Unit) {
-    LazyRow(
-        contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        items(list, key = { keyPrefix + it.id }) { anime ->
-            PosterCard(
-                title = anime.title,
-                posterUrl = anime.posterUrl,
-                rating = anime.rating,
-                onClick = { onOpenAnime(anime) }
             )
         }
     }
