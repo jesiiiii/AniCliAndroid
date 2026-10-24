@@ -471,7 +471,7 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenFavorites: () -> Unit, onOpenSett
                         items(vm.latest.distinctBy { it.animeId }, key = { "latest-fallback-" + it.animeId }) { ep ->
                             AnimeInfoCard(
                                 anime = Anime(id = ep.animeId, title = ep.animeTitle, posterUrl = ep.posterUrl, rating = ep.rating),
-                                onClick = { onOpenAnime(Anime(id = ep.animeId, title = ep.animeTitle, posterUrl = ep.posterUrl, rating = ep.rating))
+                                onClick = { onOpenAnime(Anime(id = ep.animeId, title = ep.animeTitle, posterUrl = ep.posterUrl, rating = ep.rating)) }
                             )
                         }
                     }
