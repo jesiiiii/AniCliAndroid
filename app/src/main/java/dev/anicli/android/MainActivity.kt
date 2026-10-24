@@ -510,7 +510,7 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenFavorites: () -> Unit, onOpenSett
                         item { HomeGridHorizontal(favorites, "f", onOpenAnime) }
                     }
                     if (vm.latest.isNotEmpty()) {
-                        item { HomeSectionTitle("أحدث الحلقات") }
+                        item { HomeSectionTitle("مستمر حالياً") }
                         item {
                             LazyRow(
                                 contentPadding = PaddingValues(horizontal = 16.dp),
@@ -531,7 +531,7 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenFavorites: () -> Unit, onOpenSett
                     if (vm.trending.isNotEmpty()) {
                         item {
                             Text(
-                                "الأكثر مشاهدة",
+                                "الأكثر شعبية",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Ui.textPrimary,
@@ -585,7 +585,7 @@ fun FeaturedAnimeCard(anime: Anime, onClick: () -> Unit) {
             }
         }
         Box(Modifier.align(Alignment.TopEnd).padding(14.dp).clip(RoundedCornerShape(12.dp)).background(Color(0x55FFFFFF)).padding(horizontal = 9.dp, vertical = 6.dp)) {
-            Text("UCHIHA", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Black)
+            Text("UCHIHA ANIME", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Black)
         }
     }
 }
