@@ -327,41 +327,63 @@ fun SettingsScreen(
     val prefs = remember { context.getSharedPreferences("uchiha_settings", 0) }
     var autoNext by remember { mutableStateOf(prefs.getBoolean("auto_next", true)) }
     Column(Modifier.fillMaxSize().statusBarsPadding().background(Ui.background)) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "رجوع", tint = Ui.textPrimary) }
-            Text("الإعدادات", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Ui.textPrimary)
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("الإعدادات", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Ui.textPrimary)
         }
         Column(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(Color.White).padding(vertical = 22.dp, horizontal = 18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(Modifier.size(94.dp).clip(RoundedCornerShape(50)).background(Color(0xFFC8102E)), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.Favorite, contentDescription = null, tint = Color.White, modifier = Modifier.size(46.dp))
+                }
+                Spacer(Modifier.height(12.dp))
+                Text("ساسكي أوتشيها", color = Ui.textPrimary, fontSize = 19.sp, fontWeight = FontWeight.ExtraBold)
+                Text("Uchiha Clan / Rogue", color = Ui.accent, fontSize = 12.sp)
+            }
+            Text("تفضيلات المشاهدة", color = Ui.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 4.dp))
             Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Color.White).padding(16.dp),
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color.White).padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(Modifier.weight(1f)) {
-                    Text("تشغيل الحلقة التالية تلقائياً", color = Ui.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                    Spacer(Modifier.height(4.dp))
-                    Text("ينتقل للحلقة التالية عند انتهاء الحالية.", color = Ui.textSecondary, fontSize = 12.sp)
+                Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFFFFE8E8)), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Ui.accent)
+                }
+                Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                    Text("تشغيل الحلقة التالية تلقائياً", color = Ui.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                    Spacer(Modifier.height(3.dp))
+                    Text("الانتقال للحلقة التالية عند انتهاء الحالية", color = Ui.textSecondary, fontSize = 11.sp)
                 }
                 Switch(checked = autoNext, onCheckedChange = {
                     autoNext = it
                     prefs.edit().putBoolean("auto_next", it).apply()
                 })
             }
-            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Color.White).padding(16.dp)) {
-                Column {
-                    Text("استئناف المشاهدة", color = Ui.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                    Spacer(Modifier.height(4.dp))
-                    Text("يحفظ التطبيق موضع الحلقة محلياً ويكمل منه عند فتحها مجدداً.", color = Ui.textSecondary, fontSize = 12.sp)
-                }
-            }
-            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Color.White).padding(16.dp)) {
-                Column {
-                    Text("Uchiha Anime", color = Ui.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                    Spacer(Modifier.height(4.dp))
-                    Text("مشغّل مدمج • واجهة عربية • حفظ محلي للتقدم", color = Ui.textSecondary, fontSize = 12.sp)
-                }
-            }
+            SettingsRow(icon = Icons.Default.PlayArrow, title = "استئناف المشاهدة", subtitle = "حفظ موضع الحلقة محلياً والمتابعة من حيث توقفت")
+            SettingsRow(icon = Icons.Default.Settings, title = "جودة الفيديو", subtitle = "اختيار الجودة تلقائياً عند توفر أكثر من دقة")
+            SettingsRow(icon = Icons.Default.Favorite, title = "المظهر", subtitle = "واجهة أوتشيها الفاتحة بالأحمر والأبيض")
+            Spacer(Modifier.weight(1f))
+            Text("UCHIHA ANIME  •  1.1.0", color = Ui.textSecondary, fontSize = 11.sp, modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 8.dp))
         }
         HomeBottomBar(onHome, onSearch, onFavorites, onBack, "settings")
+    }
+}
+
+@Composable
+fun SettingsRow(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, subtitle: String) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color.White).padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFFFFE8E8)), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, tint = Color(0xFFC8102E), modifier = Modifier.size(21.dp))
+        }
+        Column(Modifier.weight(1f).padding(start = 12.dp)) {
+            Text(title, color = Ui.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            Spacer(Modifier.height(3.dp))
+            Text(subtitle, color = Ui.textSecondary, fontSize = 11.sp)
+        }
     }
 }
 
