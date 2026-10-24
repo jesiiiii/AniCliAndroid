@@ -549,20 +549,6 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenFavorites: () -> Unit, onOpenSett
                         item { HomeSectionTitle("تصفّح حسب التصنيف") }
                         item { CategoryCapsulesRow(catalog, onSelect = { onOpenSearch() }) }
                     }
-                    if (vm.topRated.isNotEmpty()) {
-                        item {
-                            Text(
-                                "الأعلى تقييماً",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Ui.textPrimary,
-                                modifier = Modifier.padding(horizontal = 16.dp)
-                            )
-                        }
-                        item {
-                            HomeGridHorizontal(vm.topRated, "r", onOpenAnime)
-                        }
-                    }
                 }
             }
         }
@@ -679,13 +665,31 @@ fun CategoryCapsulesRow(items: List<Anime>, onSelect: (String) -> Unit) {
 
 @Composable
 fun HomeSectionTitle(title: String) {
-    Text(
-        title,
-        fontSize = 18.sp,
-        fontWeight = FontWeight.Bold,
-        color = Ui.textPrimary,
-        modifier = Modifier.padding(horizontal = 16.dp)
-    )
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier.width(4.dp).height(22.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(Ui.accent)
+        )
+        Text(
+            title,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = Ui.textPrimary,
+            modifier = Modifier.padding(start = 9.dp)
+        )
+        Spacer(Modifier.weight(1f))
+        Text(
+            "UCHIHA",
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Black,
+            color = Ui.accent,
+            letterSpacing = 1.2.sp
+        )
+    }
 }
 
 @Composable
