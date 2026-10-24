@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit
 
 /** All source credentials stay on the HTTPS backend, never in the APK. */
 object AnimeApi {
-    private const val BASE_URL = "https://anicli-secure-api-lzhrek.v2.appdeploy.ai"
+    private const val BASE_URL = "https://anicli-secure-api-lb55v9.v2.appdeploy.ai"
     private val client = OkHttpClient.Builder()
         .connectTimeout(12, TimeUnit.SECONDS)
         .readTimeout(25, TimeUnit.SECONDS)
