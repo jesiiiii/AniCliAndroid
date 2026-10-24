@@ -164,7 +164,8 @@ private fun AniCliHome() {
                 }
             }
 
-            selectedAnime?.let { anime ->
+            if (selectedAnime != null) {
+                val anime = selectedAnime!!
                 item {
                     Text(anime.title, color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold)
                     Text("اختر الحلقة التي تريد مشاهدتها", color = Color(0xFFB5B8C9), fontSize = 13.sp)
