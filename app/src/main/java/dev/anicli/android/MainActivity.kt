@@ -767,8 +767,9 @@ fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: ()
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var expanded by remember { mutableStateOf(false) }
+    var retryCount by remember(animeId) { mutableStateOf(0) }
 
-    LaunchedEffect(animeId) {
+    LaunchedEffect(animeId, retryCount) {
         loading = true
         error = null
         try {
@@ -795,8 +796,7 @@ fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: ()
             loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingState("جارٍ تحميل التفاصيل...") }
             error != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 ErrorState(message = error.orEmpty()) {
-                    loading = true
-                    error = null
+                    retryCount++
                 }
             }
             data == null -> EmptyState(null, "لا توجد بيانات", "تعذّر العثور على هذا الأنمي في المصدر.")
