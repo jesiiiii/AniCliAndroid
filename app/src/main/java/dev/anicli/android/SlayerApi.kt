@@ -144,7 +144,7 @@ object SlayerApi {
     fun cleanEpisodeTitle(rawName: String, epNum: Int): String {
         var name = rawName.trim()
         if (name.isEmpty()) return ""
-        name = name.replace(Regex("^(الحلقة|الحلقه|Episode|Ep|EP)\\s*[:\\s\\-]*\\d+\\s*[:\\s\\-]*"), "", RegexOption.IGNORE_CASE).trim()
+        name = name.replaceFirst(Regex("^(الحلقة|الحلقه|Episode|Ep|EP)\\s*[:\\s\\-]*\\d+\\s*[:\\s\\-]*"), "", RegexOption.IGNORE_CASE).trim()
         if (name.isEmpty() || name.matches(Regex("\\d+")) || name == epNum.toString()) return ""
         return name
     }
