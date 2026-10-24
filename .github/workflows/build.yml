@@ -22,8 +22,11 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: set up android sdk
-        uses: android-actions/setup-android@v3
+      - name: use preinstalled android sdk and accept licenses
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --list | head -5
 
       - name: validate gradle wrapper
         uses: gradle/actions/wrapper-validation@v4
