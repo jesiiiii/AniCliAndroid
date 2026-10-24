@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Uchiha Anime</string>
+    <style name="Theme.Uchiha" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">#F7F7FC</item>
+        <item name="android:navigationBarColor">#F7F7FC</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>
