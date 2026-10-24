@@ -386,8 +386,9 @@ fun HomeGridHorizontal(list: List<Anime>, keyPrefix: String, onOpenAnime: (Anime
         items(list, key = { keyPrefix + it.id }) { anime ->
             PosterCard(
                 title = anime.title,
-                posterUrl = anime.posterUrl
-            ) { }
+                posterUrl = anime.posterUrl,
+                onClick = { onOpenAnime(anime) }
+            )
         }
     }
 }
