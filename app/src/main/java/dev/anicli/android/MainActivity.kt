@@ -275,6 +275,94 @@ fun UchihaApp(openPlayer: (String, String, String) -> Unit) {
 }
 
 @Composable
+fun FavoritesScreen(
+    onBack: () -> Unit,
+    onHome: () -> Unit,
+    onSearch: () -> Unit,
+    onSettings: () -> Unit,
+    onOpenAnime: (Anime) -> Unit
+) {
+    val context = LocalContext.current
+    val favorites = remember { FavoriteAnimeStore.getAll(context).sortedBy { it.title.lowercase() } }
+    Column(Modifier.fillMaxSize().statusBarsPadding().background(Ui.background)) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "رجوع", tint = Ui.textPrimary) }
+            Text("المفضلة", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Ui.textPrimary)
+            Spacer(Modifier.weight(1f))
+            Text("${favorites.size}", color = Ui.textSecondary, fontSize = 13.sp, modifier = Modifier.padding(end = 14.dp))
+        }
+        if (favorites.isEmpty()) {
+            EmptyState(null, "قائمتك فارغة", "أضف الأنميات إلى المفضلة لتظهر هنا مرتبة.")
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                items(favorites, key = { "favorite-" + it.id }) { anime ->
+                    PosterCard(title = anime.title, posterUrl = anime.posterUrl, rating = anime.rating) { onOpenAnime(anime) }
+                }
+            }
+        }
+        HomeBottomBar(onHome, onSearch, {}, onSettings, "favorites")
+    }
+}
+
+@Composable
+fun SettingsScreen(
+    onBack: () -> Unit,
+    onHome: () -> Unit,
+    onSearch: () -> Unit,
+    onFavorites: () -> Unit
+) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("uchiha_settings", 0) }
+    var autoNext by remember { mutableStateOf(prefs.getBoolean("auto_next", true)) }
+    Column(Modifier.fillMaxSize().statusBarsPadding().background(Ui.background)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "رجوع", tint = Ui.textPrimary) }
+            Text("الإعدادات", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Ui.textPrimary)
+        }
+        Column(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Color.White).padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("تشغيل الحلقة التالية تلقائياً", color = Ui.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    Spacer(Modifier.height(4.dp))
+                    Text("ينتقل للحلقة التالية عند انتهاء الحالية.", color = Ui.textSecondary, fontSize = 12.sp)
+                }
+                Switch(checked = autoNext, onCheckedChange = {
+                    autoNext = it
+                    prefs.edit().putBoolean("auto_next", it).apply()
+                })
+            }
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Color.White).padding(16.dp)) {
+                Column {
+                    Text("استئناف المشاهدة", color = Ui.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    Spacer(Modifier.height(4.dp))
+                    Text("يحفظ التطبيق موضع الحلقة محلياً ويكمل منه عند فتحها مجدداً.", color = Ui.textSecondary, fontSize = 12.sp)
+                }
+            }
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Color.White).padding(16.dp)) {
+                Column {
+                    Text("Uchiha Anime", color = Ui.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    Spacer(Modifier.height(4.dp))
+                    Text("مشغّل مدمج • واجهة عربية • حفظ محلي للتقدم", color = Ui.textSecondary, fontSize = 12.sp)
+                }
+            }
+        }
+        HomeBottomBar(onHome, onSearch, onFavorites, onBack, "settings")
+    }
+}
+
+@Composable
 fun HomeScreen(onOpenSearch: () -> Unit, onOpenFavorites: () -> Unit, onOpenSettings: () -> Unit, onHome: () -> Unit, onOpenAnime: (Anime) -> Unit) {
     val vm: HomeViewModel = viewModel()
     val context = LocalContext.current
