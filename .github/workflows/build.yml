@@ -1,4 +1,5 @@
 name: build APK
+# Verify the latest UI redesign commit on every branch update.
 
 on:
   push:
