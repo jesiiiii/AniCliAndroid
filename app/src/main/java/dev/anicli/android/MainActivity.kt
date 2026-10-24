@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -244,7 +245,28 @@ fun UchihaApp(openPlayer: (String, String, String) -> Unit) {
                 selectedAnimeId = anime.id
                 selectedAnimeTitle = anime.title
             }
-            else -> HomeScreen(onOpenSearch = { screen = "search" }) { anime ->
+            target == "favorites" -> FavoritesScreen(
+                onBack = { screen = "home" },
+                onHome = { screen = "home" },
+                onSearch = { screen = "search" },
+                onSettings = { screen = "settings" },
+                onOpenAnime = { anime ->
+                    selectedAnimeId = anime.id
+                    selectedAnimeTitle = anime.title
+                }
+            )
+            target == "settings" -> SettingsScreen(
+                onBack = { screen = "home" },
+                onHome = { screen = "home" },
+                onSearch = { screen = "search" },
+                onFavorites = { screen = "favorites" }
+            )
+            else -> HomeScreen(
+                onOpenSearch = { screen = "search" },
+                onOpenFavorites = { screen = "favorites" },
+                onOpenSettings = { screen = "settings" },
+                onHome = { screen = "home" }
+            ) { anime ->
                 selectedAnimeId = anime.id
                 selectedAnimeTitle = anime.title
             }
@@ -253,7 +275,7 @@ fun UchihaApp(openPlayer: (String, String, String) -> Unit) {
 }
 
 @Composable
-fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
+fun HomeScreen(onOpenSearch: () -> Unit, onOpenFavorites: () -> Unit, onOpenSettings: () -> Unit, onHome: () -> Unit, onOpenAnime: (Anime) -> Unit) {
     val vm: HomeViewModel = viewModel()
     val context = LocalContext.current
     var favorites by remember { mutableStateOf(FavoriteAnimeStore.getAll(context)) }
@@ -406,9 +428,7 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                 }
             }
         }
-        HomeBottomBar(onHome = {}, onSearch = onOpenSearch, onFavorites = {
-            if (favorites.isNotEmpty()) onOpenAnime(favorites.first())
-        })
+        HomeBottomBar(onHome = onHome, onSearch = onOpenSearch, onFavorites = onOpenFavorites, onSettings = onOpenSettings, selected = "home")
     }
 }
 
@@ -440,17 +460,40 @@ fun FeaturedAnimeCard(anime: Anime, onClick: () -> Unit) {
 }
 
 @Composable
-fun HomeBottomBar(onHome: () -> Unit, onSearch: () -> Unit, onFavorites: () -> Unit) {
-    Row(Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 20.dp, vertical = 10.dp), horizontalArrangement = Arrangement.SpaceAround, verticalAlignment = Alignment.CenterVertically) {
-        BottomBarItem(Icons.Default.Home, "الرئيسية", true, onHome)
-        BottomBarItem(Icons.Default.Search, "بحث", false, onSearch)
-        BottomBarItem(Icons.Default.Favorite, "المفضلة", false, onFavorites)
+fun HomeBottomBar(
+    onHome: () -> Unit,
+    onSearch: () -> Unit,
+    onFavorites: () -> Unit,
+    onSettings: () -> Unit,
+    selected: String
+) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(30.dp)).background(Color.White)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceAround,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        BottomBarItem(Icons.Default.Home, "الرئيسية", selected == "home", onHome)
+        BottomBarItem(Icons.Default.Search, "بحث", selected == "search", onSearch)
+        BottomBarItem(Icons.Default.Favorite, "المفضلة", selected == "favorites", onFavorites)
+        BottomBarItem(Icons.Default.Settings, "الإعدادات", selected == "settings", onSettings)
     }
 }
 
 @Composable
 fun BottomBarItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
-    Column(Modifier.clip(RoundedCornerShape(16.dp)).clickable(onClick = onClick).background(if (selected) Ui.accentSoft else Color.Transparent).padding(horizontal = 16.dp, vertical = 7.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed) 0.92f else 1f, animationSpec = spring(dampingRatio = 0.55f, stiffness = 500f), label = "BottomItemScale")
+    Column(
+        Modifier.graphicsLayer { scaleX = scale; scaleY = scale }
+            .clip(RoundedCornerShape(24.dp)).clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .background(if (selected) Ui.accentSoft else Color.Transparent)
+            .padding(horizontal = 12.dp, vertical = 7.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
         Icon(icon, contentDescription = label, tint = if (selected) Ui.accent else Ui.textSecondary, modifier = Modifier.size(20.dp))
         Text(label, color = if (selected) Ui.accent else Ui.textSecondary, fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
     }
