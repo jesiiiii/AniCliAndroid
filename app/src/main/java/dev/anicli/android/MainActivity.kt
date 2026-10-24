@@ -463,6 +463,17 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenFavorites: () -> Unit, onOpenSett
                             }
                         }
                     }
+                    val catalog = (vm.trending + vm.topRated).distinctBy { it.id }
+                    val movies = catalog.filter { it.animeType.contains("فيلم") || it.animeType.contains("movie", true) }
+                    val series = catalog.filterNot { it.animeType.contains("فيلم") || it.animeType.contains("movie", true) }
+                    item {
+                        HomeSectionTitle("الأفلام")
+                        CategoryCapsulesRow(movies.ifEmpty { catalog }, onSelect = { onOpenSearch() })
+                    }
+                    item {
+                        HomeSectionTitle("المسلسلات")
+                        CategoryCapsulesRow(series.ifEmpty { catalog }, onSelect = { onOpenSearch() })
+                    }
                     item {
                         Row(
                             Modifier
@@ -610,6 +621,46 @@ fun BottomBarItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: 
     ) {
         Icon(icon, contentDescription = label, tint = if (selected) Ui.accent else Ui.textSecondary, modifier = Modifier.size(20.dp))
         Text(label, color = if (selected) Ui.accent else Ui.textSecondary, fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
+    }
+}
+
+@Composable
+fun CategoryCapsulesRow(items: List<Anime>, onSelect: (String) -> Unit) {
+    val categories = remember(items) {
+        items.flatMap { anime ->
+            anime.genres.split(",", "،", "/", "|", "؛").map { it.trim() }
+        }.filter { it.isNotBlank() }.distinct().take(14)
+            .ifEmpty { listOf("أكشن", "مغامرات", "كوميديا", "دراما", "خيال", "غموض") }
+    }
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(7.dp)
+    ) {
+        items(categories, key = { "genre-" + it }) { genre ->
+            val cover = items.firstOrNull { it.genres.contains(genre, ignoreCase = true) }?.posterUrl
+                ?: items.firstOrNull()?.posterUrl
+            Box(
+                Modifier.width(86.dp).height(42.dp).clip(RoundedCornerShape(12.dp))
+                    .clickable { onSelect(genre) }.background(Color(0xFF252036))
+            ) {
+                AsyncImage(
+                    model = cover,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize().graphicsLayer { alpha = 0.48f }
+                )
+                Box(Modifier.fillMaxSize().background(Color(0x660D0B14)))
+                Text(
+                    genre,
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.align(Alignment.Center).padding(horizontal = 5.dp)
+                )
+            }
+        }
     }
 }
 
