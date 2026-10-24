@@ -92,16 +92,16 @@ import kotlinx.coroutines.delay
 import java.io.IOException
 
 object Ui {
-    val accent = Color(0xFF5B4FE9)
-    val accentSoft = Color(0xFFEFEBFF)
-    val background = Color(0xFFF7F7FC)
+    val accent = Color(0xFFC8102E)
+    val accentSoft = Color(0xFFFFE8E8)
+    val background = Color(0xFFF7F7F7)
     val card = Color.White
     val textPrimary = Color(0xFF171226)
     val textSecondary = Color(0xFF6E6880)
-    val placeholder = Color(0xFFE9E7F5)
-    val badge = Color(0xFFFF5A5F)
+    val placeholder = Color(0xFFECECEC)
+    val badge = Color(0xFFC8102E)
     val star = Color(0xFFFFB020)
-    val border = Color(0xFFE3E1EF)
+    val border = Color(0xFFE2E2E2)
 
     val light = lightColorScheme(
         primary = accent,
@@ -301,7 +301,7 @@ fun FavoritesScreen(
             EmptyState(null, "قائمتك فارغة", "أضف الأنميات إلى المفضلة لتظهر هنا مرتبة.")
         } else {
             LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
+                columns = GridCells.Fixed(2),
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -405,10 +405,10 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenFavorites: () -> Unit, onOpenSett
                 Modifier
                     .size(44.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(Ui.accent),
+                     .background(Color(0xFFC8102E)),
                 contentAlignment = Alignment.Center
             ) {
-                Text("U", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
+                Icon(Icons.Default.Favorite, contentDescription = null, tint = Color.White, modifier = Modifier.size(25.dp))
             }
             Spacer(Modifier.width(10.dp))
             Column {
@@ -561,14 +561,14 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenFavorites: () -> Unit, onOpenSett
 fun FeaturedAnimeCard(anime: Anime, onClick: () -> Unit) {
     Box(
         Modifier.width(320.dp).height(218.dp)
-            .clip(RoundedCornerShape(26.dp)).background(Color(0xFF201747)).clickable(onClick = onClick)
+            .clip(RoundedCornerShape(26.dp)).background(Color(0xFFC8102E)).clickable(onClick = onClick)
     ) {
         AsyncImage(model = anime.posterUrl, contentDescription = null, contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize().graphicsLayer { alpha = 0.42f })
-        Box(Modifier.fillMaxSize().background(Color(0x99201747)))
+        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color(0xDD101014), Color(0x66C8102E), Color(0x99101014)))))
         Column(Modifier.align(Alignment.CenterStart).padding(20.dp).fillMaxWidth(0.76f), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-            Box(Modifier.clip(RoundedCornerShape(50)).background(Color(0xFFDED8FF)).padding(horizontal = 10.dp, vertical = 5.dp)) {
-                Text("اختيارنا لك", color = Color(0xFF4332B8), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Box(Modifier.clip(RoundedCornerShape(50)).background(Color(0xFFFFE3E6)).padding(horizontal = 10.dp, vertical = 5.dp)) {
+                Text("اختيارنا لك", color = Color(0xFFB30C26), fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
             Text(anime.title, color = Color.White, fontSize = 23.sp, lineHeight = 29.sp, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text("اكتشف التفاصيل والحلقات المتاحة", color = Color(0xFFE6E1F7), fontSize = 12.sp)
@@ -593,7 +593,7 @@ fun HomeBottomBar(
     selected: String
 ) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp)
+        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)
             .clip(RoundedCornerShape(30.dp)).background(Color.White)
             .padding(horizontal = 8.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceAround,
@@ -614,13 +614,13 @@ fun BottomBarItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: 
     Column(
         Modifier.graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(RoundedCornerShape(24.dp)).clickable(interactionSource = interaction, indication = null, onClick = onClick)
-            .background(if (selected) Ui.accentSoft else Color.Transparent)
+            .background(if (selected) Color(0xFFC8102E) else Color.Transparent)
             .padding(horizontal = 12.dp, vertical = 7.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(3.dp)
     ) {
-        Icon(icon, contentDescription = label, tint = if (selected) Ui.accent else Ui.textSecondary, modifier = Modifier.size(20.dp))
-        Text(label, color = if (selected) Ui.accent else Ui.textSecondary, fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
+        Icon(icon, contentDescription = label, tint = if (selected) Color.White else Ui.textSecondary, modifier = Modifier.size(20.dp))
+        Text(label, color = if (selected) Color.White else Ui.textSecondary, fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
     }
 }
 
@@ -640,7 +640,7 @@ fun CategoryCapsulesRow(items: List<Anime>, onSelect: (String) -> Unit) {
             val cover = items.firstOrNull { it.genres.contains(genre, ignoreCase = true) }?.posterUrl
                 ?: items.firstOrNull()?.posterUrl
             Box(
-                Modifier.width(86.dp).height(42.dp).clip(RoundedCornerShape(12.dp))
+                Modifier.width(96.dp).height(48.dp).clip(RoundedCornerShape(12.dp))
                     .clickable { onSelect(genre) }.background(Color(0xFF252036))
             ) {
                 AsyncImage(
@@ -1060,8 +1060,8 @@ fun PosterCard(title: String, posterUrl: String?, badge: String = "", rating: St
             )
             if (rating.isNotBlank()) {
                 Box(
-                    Modifier.align(Alignment.BottomStart).fillMaxWidth().height(38.dp)
-                        .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xD9100D1A))))
+                    Modifier.align(Alignment.BottomStart).fillMaxWidth().height(42.dp)
+                        .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xE6000000))))
                 ) {
                     Row(
                         Modifier.align(Alignment.BottomStart).padding(horizontal = 8.dp, vertical = 6.dp),
