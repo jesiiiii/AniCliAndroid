@@ -1,73 +1,73 @@
 package dev.anicli.android
 
 import android.os.Bundle
+import android.view.View
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackParameters
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
+
+private val Ink = Color(0xFF202438)
+private val Muted = Color(0xFF687087)
+private val Accent = Color(0xFF6650C8)
+private val Canvas = Color(0xFFF7F7FC)
+private val Card = Color.White
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.decorView.layoutDirection = View.LAYOUT_DIRECTION_RTL
         setContent {
             MaterialTheme(
-                colorScheme = darkColorScheme(
-                    primary = Color(0xFFB7A6FF),
-                    background = Color(0xFF090B13),
-                    surface = Color(0xFF171A28)
+                colorScheme = lightColorScheme(
+                    primary = Accent,
+                    onPrimary = Color.White,
+                    background = Canvas,
+                    surface = Card,
+                    onSurface = Ink,
+                    secondary = Color(0xFFEBE7FF)
                 )
             ) {
-                AniCliHome()
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                    UchihaHome()
+                }
             }
         }
     }
 }
 
 @Composable
-private fun AniCliHome() {
+private fun UchihaHome() {
     var query by remember { mutableStateOf("") }
-    var status by remember { mutableStateOf("ابحث عن أنمي بالاسم") }
+    var status by remember { mutableStateOf("ابحث عن أنمي بالاسم أو بالعربية") }
     var loading by remember { mutableStateOf(false) }
     var results by remember { mutableStateOf(emptyList<Anime>()) }
     var selectedAnime by remember { mutableStateOf<Anime?>(null) }
@@ -75,178 +75,231 @@ private fun AniCliHome() {
     var episodesLoading by remember { mutableStateOf(false) }
     var streamLoading by remember { mutableStateOf(false) }
     var stream by remember { mutableStateOf<StreamInfo?>(null) }
+    var lastEpisode by remember { mutableStateOf<Episode?>(null) }
+    var showPlayer by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(Color(0xFF17152D), Color(0xFF090B13), Color(0xFF090B13))))
-            .padding(horizontal = 16.dp)
-    ) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            item {
-                Spacer(Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier.size(48.dp).background(Color(0xFFB7A6FF), RoundedCornerShape(16.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("A", color = Color(0xFF151126), fontSize = 27.sp, fontWeight = FontWeight.Black)
-                    }
-                    Column(Modifier.padding(start = 12.dp)) {
-                        Text("AniCli", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        Text("ANIME • YOUR WAY", fontSize = 10.sp, letterSpacing = 2.sp, color = Color(0xFFB7A6FF))
+    fun search() {
+        if (query.isBlank()) {
+            status = "اكتب اسم الأنمي أولاً."
+            return
+        }
+        loading = true
+        status = "جارٍ البحث في المصدر..."
+        results = emptyList()
+        selectedAnime = null
+        episodes = emptyList()
+        stream = null
+        lastEpisode = null
+        scope.launch {
+            try {
+                results = AnimeApi.search(query)
+                status = if (results.isEmpty()) "لم يُعثر على نتائج مطابقة." else "عُثر على ${results.size} نتيجة."
+            } catch (e: Exception) {
+                status = e.message ?: "تعذّر الاتصال بالمصدر. تحقق من الإنترنت ثم أعد المحاولة."
+            } finally {
+                loading = false
+            }
+        }
+    }
+
+    fun loadEpisodes(anime: Anime) {
+        selectedAnime = anime
+        episodes = emptyList()
+        stream = null
+        lastEpisode = null
+        episodesLoading = true
+        status = "جارٍ تحميل الحلقات..."
+        scope.launch {
+            try {
+                episodes = AnimeApi.getEpisodes(anime.id)
+                status = if (episodes.isEmpty()) "لا توجد حلقات متاحة في المصدر لهذا العنوان." else "الحلقات المتاحة: ${episodes.size}"
+            } catch (e: Exception) {
+                status = e.message ?: "تعذّر جلب الحلقات."
+            } finally {
+                episodesLoading = false
+            }
+        }
+    }
+
+    fun loadStream(anime: Anime, episode: Episode) {
+        lastEpisode = episode
+        streamLoading = true
+        stream = null
+        status = "جارٍ تجهيز رابط المشاهدة..."
+        scope.launch {
+            try {
+                stream = AnimeApi.resolveStream(anime.id, episode.number, anime.animeType)
+                showPlayer = true
+                status = "تم تجهيز الحلقة ${episode.number}."
+            } catch (e: Exception) {
+                status = e.message ?: "تعذّر تجهيز الفيديو. يمكنك إعادة المحاولة."
+            } finally {
+                streamLoading = false
+            }
+        }
+    }
+
+    BackHandler(enabled = showPlayer || selectedAnime != null) {
+        if (showPlayer) {
+            showPlayer = false
+        } else {
+            selectedAnime = null
+            episodes = emptyList()
+            stream = null
+        }
+    }
+
+    Surface(modifier = Modifier.fillMaxSize(), color = Canvas) {
+        Column(Modifier.fillMaxSize()) {
+            Row(
+                Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 18.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(color = Accent, shape = RoundedCornerShape(15.dp), modifier = Modifier.size(46.dp)) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text("う", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Black)
                     }
                 }
-                Spacer(Modifier.height(12.dp))
-                Text("عالمك، حلقة بعد حلقة", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                Text("ابحث عن الأنمي، اختر حلقة، وشاهد مباشرة", color = Color(0xFFB5B8C9), fontSize = 14.sp)
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    label = { Text("اسم الأنمي") },
-                    placeholder = { Text("مثال: Naruto") },
-                    shape = RoundedCornerShape(18.dp)
-                )
-                Spacer(Modifier.height(8.dp))
-                Button(
-                    enabled = !loading,
-                    onClick = {
-                        if (query.isBlank()) {
-                            status = "اكتب اسم الأنمي أولاً"
-                        } else {
-                            loading = true
-                            status = "جارٍ البحث..."
-                            results = emptyList()
-                            selectedAnime = null
-                            episodes = emptyList()
-                            stream = null
-                            scope.launch {
-                                try {
-                                    results = AnimeApi.search(query)
-                                    status = if (results.isEmpty()) "لم تُعثر نتائج." else "النتائج: ${results.size}"
-                                } catch (e: Exception) {
-                                    status = e.message ?: "حدث خطأ أثناء البحث"
-                                } finally {
-                                    loading = false
-                                }
-                            }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB7A6FF))
-                ) {
-                    if (loading) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color(0xFF171126), strokeWidth = 2.dp)
-                    else Text("بحث عن الأنمي", color = Color(0xFF171126), fontWeight = FontWeight.Bold)
+                Column(Modifier.padding(start = 12.dp)) {
+                    Text("Uchiha Anime", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Ink)
+                    Text("أنميك المفضل، في مكان واحد", fontSize = 12.sp, color = Muted)
                 }
-                Text(status, color = Color(0xFFB5B8C9), fontSize = 13.sp, modifier = Modifier.padding(vertical = 4.dp))
             }
 
-            if (stream != null) {
-                item {
-                    Text("المشغّل", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            if (showPlayer && stream != null) {
+                Column(Modifier.fillMaxSize().padding(16.dp)) {
+                    TextButton(onClick = { showPlayer = false }) { Text("→ العودة إلى الحلقات") }
+                    Text(selectedAnime?.title.orEmpty(), color = Ink, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(10.dp))
                     AnimeVideoPlayer(streamUrl = stream!!.url)
-                    Text("الجودة: ${stream!!.quality}", color = Color(0xFFB7A6FF), fontSize = 12.sp)
-                }
-            } else if (streamLoading) {
-                item {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                        Text(" جارٍ تجهيز رابط المشاهدة...", color = Color.White, modifier = Modifier.padding(start = 10.dp))
-                    }
-                }
-            }
-
-            if (selectedAnime != null) {
-                val anime = selectedAnime!!
-                item {
-                    Text(anime.title, color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold)
-                    Text("اختر الحلقة التي تريد مشاهدتها", color = Color(0xFFB5B8C9), fontSize = 13.sp)
-                }
-                if (episodesLoading) {
-                    item { CircularProgressIndicator(modifier = Modifier.size(24.dp)) }
-                } else if (episodes.isEmpty()) {
-                    item { Text("لا توجد حلقات متاحة لهذا العنوان.", color = Color(0xFFB5B8C9)) }
-                } else {
-                    items(episodes, key = { "${anime.id}-${it.number}" }) { episode ->
-                        Surface(
-                            modifier = Modifier.fillMaxWidth().clickable(enabled = !streamLoading) {
-                                streamLoading = true
-                                stream = null
-                                status = "جارٍ تجهيز الحلقة ${episode.number}..."
-                                scope.launch {
-                                    try {
-                                        stream = AnimeApi.resolveStream(
-                                            animeId = anime.id,
-                                            episode = episode.number,
-                                            animeType = anime.animeType
-                                        )
-                                        status = "تم تجهيز الحلقة ${episode.number}"
-                                    } catch (e: Exception) {
-                                        status = e.message ?: "تعذّر تشغيل هذه الحلقة"
-                                    } finally {
-                                        streamLoading = false
-                                    }
-                                }
-                            },
-                            color = Color(0xAA1C2030),
-                            shape = RoundedCornerShape(14.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(14.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("${episode.type} ${episode.number}", color = Color.White, fontWeight = FontWeight.SemiBold)
-                                Spacer(Modifier.weight(1f))
-                                Text("▶", color = Color(0xFFB7A6FF), fontSize = 18.sp)
-                            }
-                        }
-                    }
+                    Text("الجودة المتاحة: ${stream!!.quality}", color = Muted, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+                    Text("إذا لم يبدأ التشغيل، أعد طلب رابط الحلقة من القائمة.", color = Muted, fontSize = 12.sp)
                 }
             } else {
-                items(results, key = { it.id }) { anime ->
-                    Surface(
-                        color = Color(0xAA1C2030),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth().clickable {
-                            selectedAnime = anime
-                            episodes = emptyList()
-                            stream = null
-                            episodesLoading = true
-                            status = "جارٍ تحميل حلقات ${anime.title}..."
-                            scope.launch {
-                                try {
-                                    episodes = AnimeApi.getEpisodes(anime.id)
-                                    status = if (episodes.isEmpty()) "لم تُرجع الخدمة حلقات لهذا الأنمي." else "عدد الحلقات: ${episodes.size}"
-                                } catch (e: Exception) {
-                                    status = e.message ?: "تعذّر جلب الحلقات"
-                                } finally {
-                                    episodesLoading = false
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(top = 16.dp, bottom = 28.dp)
+                ) {
+                    item {
+                        Text(
+                            if (selectedAnime == null) "اكتشف عالم الأنمي" else selectedAnime!!.title,
+                            fontSize = 25.sp, fontWeight = FontWeight.ExtraBold, color = Ink
+                        )
+                        Text(
+                            if (selectedAnime == null) "ابحث في المصدر المتصل، ثم افتح العنوان واختر الحلقة." else "اختر حلقة متاحة من المصدر الحقيقي.",
+                            fontSize = 13.sp, color = Muted, modifier = Modifier.padding(top = 4.dp, bottom = 10.dp)
+                        )
+                    }
+
+                    if (selectedAnime == null) {
+                        item {
+                            OutlinedTextField(
+                                value = query,
+                                onValueChange = { query = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                label = { Text("اسم الأنمي") },
+                                placeholder = { Text("مثال: Naruto أو ون بيس") },
+                                shape = RoundedCornerShape(16.dp),
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                keyboardActions = KeyboardActions(onSearch = { search() })
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Button(
+                                onClick = { search() },
+                                enabled = !loading,
+                                modifier = Modifier.fillMaxWidth().height(50.dp),
+                                shape = RoundedCornerShape(15.dp)
+                            ) {
+                                if (loading) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = Color.White)
+                                else Text("بحث عن الأنمي", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        item {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(status, color = Muted, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                                if (!loading && results.isEmpty() && query.isNotBlank()) {
+                                    TextButton(onClick = { search() }) { Text("إعادة المحاولة") }
                                 }
                             }
                         }
-                    ) {
-                        Column(Modifier.padding(14.dp)) {
-                            Text(anime.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                            anime.description?.let {
-                                Spacer(Modifier.height(4.dp))
-                                Text(it, color = Color(0xFFB5B8C9), fontSize = 12.sp)
+                        items(results, key = { it.id }) { anime ->
+                            Surface(
+                                color = Card,
+                                shape = RoundedCornerShape(18.dp),
+                                shadowElevation = 1.dp,
+                                modifier = Modifier.fillMaxWidth().clickable { loadEpisodes(anime) }
+                            ) {
+                                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    if (anime.posterUrl != null) {
+                                        AsyncImage(
+                                            model = anime.posterUrl,
+                                            contentDescription = "غلاف ${anime.title}",
+                                            modifier = Modifier.size(width = 86.dp, height = 116.dp)
+                                        )
+                                    } else {
+                                        Surface(color = Color(0xFFECEAF5), shape = RoundedCornerShape(10.dp), modifier = Modifier.size(width = 86.dp, height = 116.dp)) {
+                                            Box(contentAlignment = Alignment.Center) { Text("Anime", color = Accent, fontWeight = FontWeight.Bold) }
+                                        }
+                                    }
+                                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                                        Text(anime.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Ink)
+                                        anime.description?.let {
+                                            Spacer(Modifier.height(5.dp))
+                                            Text(it, color = Muted, fontSize = 12.sp, maxLines = 3)
+                                        }
+                                        Spacer(Modifier.height(8.dp))
+                                        Text("عرض التفاصيل والحلقات  ←", color = Accent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        item {
+                            TextButton(onClick = {
+                                selectedAnime = null
+                                episodes = emptyList()
+                                stream = null
+                            }) { Text("→ العودة إلى نتائج البحث") }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(status, color = Muted, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                                if (!episodesLoading) TextButton(onClick = { loadEpisodes(selectedAnime!!) }) { Text("تحديث الحلقات") }
+                            }
+                        }
+                        if (episodesLoading) {
+                            item { Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
+                        } else if (episodes.isEmpty()) {
+                            item { Text("لا توجد حلقات معروضة. يمكنك تحديث القائمة أو تجربة عنوان آخر.", color = Muted, fontSize = 14.sp) }
+                        } else {
+                            items(episodes, key = { "${selectedAnime!!.id}-${it.number}" }) { episode ->
+                                Surface(
+                                    color = Card,
+                                    shape = RoundedCornerShape(14.dp),
+                                    modifier = Modifier.fillMaxWidth().clickable(enabled = !streamLoading) {
+                                        loadStream(selectedAnime!!, episode)
+                                    }
+                                ) {
+                                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text("${episode.type} ${episode.number}", color = Ink, fontWeight = FontWeight.Bold)
+                                            Text("اضغط لطلب رابط المشاهدة", color = Muted, fontSize = 12.sp)
+                                        }
+                                        Text(if (streamLoading && lastEpisode == episode) "…" else "▶", color = Accent, fontSize = 20.sp)
+                                    }
+                                }
+                            }
+                        }
+                        if (!streamLoading && lastEpisode != null && stream == null) {
+                            item {
+                                Button(onClick = { selectedAnime?.let { a -> lastEpisode?.let { e -> loadStream(a, e) } } }, modifier = Modifier.fillMaxWidth()) {
+                                    Text("إعادة محاولة تشغيل الحلقة")
+                                }
                             }
                         }
                     }
                 }
-            }
-            item {
-                Spacer(Modifier.height(8.dp))
-                Text("نسخة تجريبية • 0.4.0", color = Color(0xFF777D92), fontSize = 11.sp)
-                Spacer(Modifier.height(18.dp))
             }
         }
     }
@@ -255,6 +308,7 @@ private fun AniCliHome() {
 @Composable
 private fun AnimeVideoPlayer(streamUrl: String) {
     val context = LocalContext.current
+    var speed by remember(streamUrl) { mutableFloatStateOf(1f) }
     val player = remember(streamUrl) {
         ExoPlayer.Builder(context).build().apply {
             setMediaItem(MediaItem.fromUri(streamUrl))
@@ -265,9 +319,29 @@ private fun AnimeVideoPlayer(streamUrl: String) {
     DisposableEffect(player) {
         onDispose { player.release() }
     }
-    AndroidView(
-        factory = { ctx -> PlayerView(ctx).apply { this.player = player } },
-        update = { it.player = player },
-        modifier = Modifier.fillMaxWidth().height(230.dp)
-    )
+    Column {
+        AndroidView(
+            factory = { ctx -> PlayerView(ctx).apply { this.player = player; useController = true } },
+            update = { it.player = player },
+            modifier = Modifier.fillMaxWidth().height(235.dp)
+        )
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedButton(onClick = { player.seekTo((player.currentPosition - 10_000).coerceAtLeast(0)) }) { Text("−10 ث") }
+            OutlinedButton(onClick = { player.seekTo(player.currentPosition + 10_000) }) { Text("+10 ث") }
+            Spacer(Modifier.weight(1f))
+            Text("السرعة", color = Muted, fontSize = 12.sp)
+            listOf(0.5f, 0.75f, 1f, 1.5f, 2f).forEach { value ->
+                TextButton(
+                    onClick = {
+                        speed = value
+                        player.playbackParameters = PlaybackParameters(value)
+                    },
+                    contentPadding = PaddingValues(horizontal = 4.dp)
+                ) {
+                    Text(if (speed == value) "${value}x" else "${value}x", color = if (speed == value) Accent else Muted, fontSize = 11.sp)
+                }
+            }
+        }
+    }
 }
