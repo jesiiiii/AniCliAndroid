@@ -438,6 +438,15 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenFavorites: () -> Unit, onOpenSett
                 Text("أنمي بالعربية، حلقة بعد حلقة", fontSize = 12.sp, color = Ui.textSecondary)
             }
         }
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+                .height(46.dp).clip(RoundedCornerShape(24.dp)).background(Color.White)
+                .clickable { onOpenSearch() }.padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Default.Search, contentDescription = "بحث", tint = Ui.textSecondary)
+            Text("ابحث عن أنمي...", modifier = Modifier.weight(1f).padding(horizontal = 10.dp), color = Ui.textSecondary, fontSize = 14.sp)
+        }
         when {
             vm.loading && vm.latest.isEmpty() -> {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -495,31 +504,6 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenFavorites: () -> Unit, onOpenSett
                     item {
                         HomeSectionTitle("المسلسلات")
                         CategoryCapsulesRow(series.ifEmpty { catalog }, onSelect = { onOpenSearch() })
-                    }
-                    item {
-                        Row(
-                            Modifier
-                                .padding(horizontal = 16.dp)
-                                .fillMaxWidth()
-                                .clickable { onOpenSearch() }
-                                .height(52.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(Ui.card),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.Search,
-                                contentDescription = "بحث",
-                                tint = Ui.textSecondary,
-                                modifier = Modifier.padding(start = 14.dp)
-                            )
-                            Text(
-                                "ابحث عن أنمي...",
-                                modifier = Modifier.padding(horizontal = 10.dp),
-                                color = Ui.textSecondary,
-                                fontSize = 15.sp
-                            )
-                        }
                     }
                     if (favorites.isNotEmpty()) {
                         item { HomeSectionTitle("مفضلتك") }
@@ -582,8 +566,8 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenFavorites: () -> Unit, onOpenSett
 @Composable
 fun FeaturedAnimeCard(anime: Anime, onClick: () -> Unit) {
     Box(
-        Modifier.width(320.dp).height(218.dp)
-            .clip(RoundedCornerShape(26.dp)).background(Color(0xFFC8102E)).clickable(onClick = onClick)
+        Modifier.width(320.dp).height(226.dp)
+            .clip(RoundedCornerShape(22.dp)).background(Color(0xFFC8102E)).clickable(onClick = onClick)
     ) {
         AsyncImage(model = anime.posterUrl, contentDescription = null, contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize().graphicsLayer { alpha = 0.42f })
@@ -636,7 +620,7 @@ fun BottomBarItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: 
     Column(
         Modifier.graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(RoundedCornerShape(24.dp)).clickable(interactionSource = interaction, indication = null, onClick = onClick)
-            .background(if (selected) Color(0xFFC8102E) else Color.Transparent)
+            .background(if (selected) Color(0xFFE85B24) else Color.Transparent)
             .padding(horizontal = 12.dp, vertical = 7.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(3.dp)
@@ -662,7 +646,7 @@ fun CategoryCapsulesRow(items: List<Anime>, onSelect: (String) -> Unit) {
             val cover = items.firstOrNull { it.genres.contains(genre, ignoreCase = true) }?.posterUrl
                 ?: items.firstOrNull()?.posterUrl
             Box(
-                Modifier.width(96.dp).height(48.dp).clip(RoundedCornerShape(12.dp))
+                Modifier.width(104.dp).height(54.dp).clip(RoundedCornerShape(12.dp))
                     .clickable { onSelect(genre) }.background(Color(0xFF252036))
             ) {
                 AsyncImage(
@@ -894,6 +878,19 @@ fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: ()
                                 }
                             }
                             }
+                        }
+                    }
+                    item {
+                        Button(
+                            onClick = { info.episodes.firstOrNull()?.let { onSelectEpisode(it.number) } },
+                            enabled = info.episodes.isNotEmpty(),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(50.dp),
+                            shape = RoundedCornerShape(28.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC8102E))
+                        ) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White)
+                            Spacer(Modifier.width(8.dp))
+                            Text("تشغيل الحلقات", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         }
                     }
                     if (info.anime.description?.isNotBlank() == true) {
