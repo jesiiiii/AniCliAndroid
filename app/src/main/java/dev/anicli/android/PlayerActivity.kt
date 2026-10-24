@@ -169,7 +169,9 @@ fun PlayerScreen(
             )
             return@LaunchedEffect
         }
-        resolveState = ResolveState(resolving = false, streams = resolved.streams, selected = -1)
+        resolveState = ResolveState(resolving = false, streams = resolved.streams, selected = 0)
+        // Start the first available stream automatically; the quality chips remain available for switching.
+        activeUrl = resolved.streams.first().url
     }
 
     // a chosen link is verified before and after hand-off so a dead chip never produces a black screen
