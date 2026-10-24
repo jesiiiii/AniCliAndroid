@@ -40,6 +40,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -315,7 +318,16 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                 ErrorState(message = vm.error.orEmpty()) { vm.load() }
             }
             else -> {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(18.dp),
+                    contentPadding = PaddingValues(bottom = 18.dp)
+                ) {
+                    if (vm.trending.isNotEmpty()) {
+                        item {
+                            FeaturedAnimeCard(anime = vm.trending.first(), onClick = { onOpenAnime(vm.trending.first()) })
+                        }
+                    }
                     item {
                         Row(
                             Modifier
@@ -391,10 +403,56 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                             HomeGridHorizontal(vm.topRated, "r", onOpenAnime)
                         }
                     }
-                    item { Spacer(Modifier.height(30.dp)) }
                 }
             }
         }
+        HomeBottomBar(onHome = {}, onSearch = onOpenSearch, onFavorites = {
+            if (favorites.isNotEmpty()) onOpenAnime(favorites.first())
+        })
+    }
+}
+
+@Composable
+fun FeaturedAnimeCard(anime: Anime, onClick: () -> Unit) {
+    Box(
+        Modifier.padding(horizontal = 16.dp).fillMaxWidth().height(218.dp)
+            .clip(RoundedCornerShape(26.dp)).background(Color(0xFF201747)).clickable(onClick = onClick)
+    ) {
+        AsyncImage(model = anime.posterUrl, contentDescription = null, contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize().graphicsLayer { alpha = 0.42f })
+        Box(Modifier.fillMaxSize().background(Color(0x99201747)))
+        Column(Modifier.align(Alignment.CenterStart).padding(20.dp).fillMaxWidth(0.76f), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Box(Modifier.clip(RoundedCornerShape(50)).background(Color(0xFFDED8FF)).padding(horizontal = 10.dp, vertical = 5.dp)) {
+                Text("اختيارنا لك", color = Color(0xFF4332B8), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+            Text(anime.title, color = Color.White, fontSize = 23.sp, lineHeight = 29.sp, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text("اكتشف التفاصيل والحلقات المتاحة", color = Color(0xFFE6E1F7), fontSize = 12.sp)
+            Row(Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White).clickable(onClick = onClick).padding(horizontal = 13.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Ui.accent, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("استكشف الأنمي", color = Ui.accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        Box(Modifier.align(Alignment.TopEnd).padding(14.dp).clip(RoundedCornerShape(12.dp)).background(Color(0x55FFFFFF)).padding(horizontal = 9.dp, vertical = 6.dp)) {
+            Text("UCHIHA", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Black)
+        }
+    }
+}
+
+@Composable
+fun HomeBottomBar(onHome: () -> Unit, onSearch: () -> Unit, onFavorites: () -> Unit) {
+    Row(Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 20.dp, vertical = 10.dp), horizontalArrangement = Arrangement.SpaceAround, verticalAlignment = Alignment.CenterVertically) {
+        BottomBarItem(Icons.Default.Home, "الرئيسية", true, onHome)
+        BottomBarItem(Icons.Default.Search, "بحث", false, onSearch)
+        BottomBarItem(Icons.Default.Favorite, "المفضلة", false, onFavorites)
+    }
+}
+
+@Composable
+fun BottomBarItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
+    Column(Modifier.clip(RoundedCornerShape(16.dp)).clickable(onClick = onClick).background(if (selected) Ui.accentSoft else Color.Transparent).padding(horizontal = 16.dp, vertical = 7.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Icon(icon, contentDescription = label, tint = if (selected) Ui.accent else Ui.textSecondary, modifier = Modifier.size(20.dp))
+        Text(label, color = if (selected) Ui.accent else Ui.textSecondary, fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
     }
 }
 
