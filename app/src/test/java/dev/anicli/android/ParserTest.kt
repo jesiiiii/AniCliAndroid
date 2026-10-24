@@ -138,7 +138,8 @@ class ParserTest {
         cipher.init(Cipher.ENCRYPT_MODE, SecretKeySpec(key, "AES"), IvParameterSpec(iv))
         val ciphertext = cipher.doFinal(secret)
 
-        val envelope = byteArrayOf(3, 1) + salt + byteArrayOf(1) + iv + ciphertext + ByteArray(32)
+        // envelope layout used by the resolver: version/options(2), salt(8), 8-byte gap, iv(16), ciphertext, hmac(32)
+        val envelope = byteArrayOf(3, 1) + salt + ByteArray(8) + iv + ciphertext + ByteArray(32)
         val decrypted = SlayerApi.decryptRncPayload(SlayerApi.parseRncEnvelope(envelope))
         assertEquals("test message secret", decrypted)
     }
