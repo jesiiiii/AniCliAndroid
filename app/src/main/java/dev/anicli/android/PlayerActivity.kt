@@ -150,7 +150,17 @@ fun PlayerScreen(
     var playbackError by remember { mutableStateOf<String?>(null) }
     var fullscreen by remember { mutableStateOf(false) }
     var attempt by remember { mutableStateOf(0) }
+    var nextEpisodeNumber by remember { mutableStateOf<String?>(null) }
+    var autoAdvanced by remember { mutableStateOf(false) }
     val player = remember { ExoPlayer.Builder(context).build() }
+
+    LaunchedEffect(animeId, episodeNumber) {
+        nextEpisodeNumber = runCatching {
+            val episodes = SlayerApi.getAnimeWithEpisodes(animeId).episodes.sortedBy { it.number.toIntOrNull() ?: Int.MAX_VALUE }
+            val currentIndex = episodes.indexOfFirst { it.number == episodeNumber }
+            episodes.getOrNull(currentIndex + 1)?.number
+        }.getOrNull()
+    }
 
     // An expired or dead link is retried through a fresh resolve attempt.
     LaunchedEffect(attempt) {
@@ -233,6 +243,18 @@ fun PlayerScreen(
             }
         }
         val playbackListener = object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_ENDED && !autoAdvanced) {
+                    val next = nextEpisodeNumber
+                    if (!next.isNullOrBlank()) {
+                        autoAdvanced = true
+                        PlaybackProgress.save(context, animeId, episodeNumber, player.currentPosition, player.duration.coerceAtLeast(0L))
+                        context.startActivity(PlayerActivity.intent(context, animeId, animeTitle, next))
+                        onFinish()
+                    }
+                }
+            }
+
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (isPlaying) {
                     activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -627,7 +649,7 @@ fun QualityChipsRow(streams: List<StreamOption>, selectedIndex: Int, onSelect: (
                     modifier = Modifier.clickable { onSelect(index) }
                 ) {
                     Text(
-                        stream.label,
+                        stream.quality.ifBlank { "تلقائي" },
                         color = if (selected) Color.White else Color(0xFFC9C2DC),
                         fontSize = 12.sp,
                         fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
