@@ -74,6 +74,7 @@ import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import dev.anicli.android.ui.theme.UchihaTheme
 import kotlinx.coroutines.delay
 import java.util.Locale
 
@@ -102,7 +103,7 @@ class PlayerActivity : ComponentActivity() {
             return
         }
         setContent {
-            MaterialTheme(colorScheme = Ui.light) {
+            UchihaTheme {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                     PlayerScreen(
                         animeId = animeId,
@@ -170,7 +171,7 @@ fun PlayerScreen(
         val resolved = try {
             SlayerApi.resolveStreams(animeId, episodeNumber)
         } catch (e: Exception) {
-            resolveState = ResolveState(resolving = false, error = Ui.friendly(e, "تعذّر تجهيز الحلقة."))
+            resolveState = ResolveState(resolving = false, error = PlayerUi.friendly(e, "تعذّر تجهيز الحلقة."))
             return@LaunchedEffect
         }
         if (resolved.streams.isEmpty()) {
@@ -338,7 +339,7 @@ fun PlayerScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    CircularProgressIndicator(color = Ui.accent)
+                    CircularProgressIndicator(color = PlayerUi.accent)
                     Text("جارٍ تجهيز رابط المشاهدة...", color = Color(0xFFC9C2DC), fontSize = 14.sp)
                 }
             }
@@ -410,7 +411,7 @@ fun PlayerErrorBlock(title: String, message: String, onRetry: () -> Unit) {
         )
         Button(
             onClick = onRetry,
-            colors = ButtonDefaults.buttonColors(containerColor = Ui.accent)
+            colors = ButtonDefaults.buttonColors(containerColor = PlayerUi.accent)
         ) {
             Text("إعادة المحاولة", color = Color.White)
         }
@@ -551,7 +552,7 @@ fun PlayerControlBar(player: ExoPlayer, onFullscreen: () -> Unit) {
                             Modifier
                                 .align(Alignment.TopEnd)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(Ui.accent)
+                                .background(PlayerUi.accent)
                                 .padding(horizontal = 4.dp)
                         ) {
                             Text(
@@ -572,7 +573,7 @@ fun PlayerControlBar(player: ExoPlayer, onFullscreen: () -> Unit) {
                             text = {
                                 Text(
                                     if (option == 1f) "عادي (1x)" else "$option x",
-                                    color = if (option == playbackSpeed) Ui.accent else Color(0xFF2B2440)
+                                    color = if (option == playbackSpeed) PlayerUi.accent else Color(0xFF2B2440)
                                 )
                             },
                             onClick = {
@@ -614,8 +615,8 @@ fun PlayerControlBar(player: ExoPlayer, onFullscreen: () -> Unit) {
                     seeking = false
                 },
                 colors = SliderDefaults.colors(
-                    thumbColor = Ui.accent,
-                    activeTrackColor = Ui.accent,
+                    thumbColor = PlayerUi.accent,
+                    activeTrackColor = PlayerUi.accent,
                     inactiveTrackColor = Color(0xFF312A47)
                 ),
                 modifier = Modifier
@@ -646,7 +647,7 @@ fun QualityChipsRow(streams: List<StreamOption>, selectedIndex: Int, onSelect: (
                 val selected = index == selectedIndex
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = if (selected) Ui.accent else Color(0xFF1C1730),
+                    color = if (selected) PlayerUi.accent else Color(0xFF1C1730),
                     modifier = Modifier.clickable { onSelect(index) }
                 ) {
                     Text(
@@ -659,5 +660,16 @@ fun QualityChipsRow(streams: List<StreamOption>, selectedIndex: Int, onSelect: (
                 }
             }
         }
+    }
+}
+
+/** Player-local palette: dark cinema surface, warm gold accents from the Uchiha scheme. */
+private object PlayerUi {
+    val accent = Color(0xFFD7A43B)
+
+    fun friendly(e: Throwable, fallback: String): String = when {
+        e is SlayerApi.ApiException -> e.message ?: fallback
+        e is java.io.IOException -> "تعذّر الاتصال بالخادم، تحقق من الإنترنت وأعد المحاولة."
+        else -> e.message ?: fallback
     }
 }
