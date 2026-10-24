@@ -56,6 +56,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -227,6 +228,9 @@ fun UchihaApp(openPlayer: (String, String, String) -> Unit) {
 @Composable
 fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
     val vm: HomeViewModel = viewModel()
+    val context = LocalContext.current
+    var favorites by remember { mutableStateOf(FavoriteAnimeStore.getAll(context)) }
+    LaunchedEffect(Unit) { favorites = FavoriteAnimeStore.getAll(context) }
     LaunchedEffect(Unit) {
         if (vm.latest.isEmpty() && vm.trending.isEmpty() && vm.topRated.isEmpty()) vm.load()
     }
@@ -312,6 +316,10 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                                 fontSize = 15.sp
                             )
                         }
+                    }
+                    if (favorites.isNotEmpty()) {
+                        item { HomeSectionTitle("مفضلتك") }
+                        item { HomeGridHorizontal(favorites, "f", onOpenAnime) }
                     }
                     if (vm.latest.isNotEmpty()) {
                         item { HomeSectionTitle("أحدث الحلقات") }
@@ -465,6 +473,8 @@ private fun trimmed(value: String): String = value.trim()
 
 @Composable
 fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: () -> Unit) {
+    val context = LocalContext.current
+    var isFavorite by remember(animeId) { mutableStateOf(FavoriteAnimeStore.contains(context, animeId)) }
     var data by remember { mutableStateOf<AnimeWithEpisodes?>(null) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -525,6 +535,11 @@ fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: ()
                                     fontWeight = FontWeight.Bold,
                                     color = Ui.textPrimary
                                 )
+                                TextButton(onClick = {
+                                    isFavorite = FavoriteAnimeStore.toggle(context, info.anime)
+                                }) {
+                                    Text(if (isFavorite) "★ إزالة من المفضلة" else "☆ إضافة للمفضلة", color = Ui.accent)
+                                }
                                 info.anime.titleEn.takeIf { it.isNotBlank() && it != info.anime.title }?.let {
                                     Text(it, fontSize = 13.sp, color = Ui.textSecondary)
                                 }
