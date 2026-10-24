@@ -196,10 +196,30 @@ fun PlayerScreen(
             activeUrl = null
             return@LaunchedEffect
         }
+        val savedPosition = PlaybackProgress.get(context, animeId, episodeNumber)
+        val currentPosition = player.currentPosition.takeIf { it > 5_000L } ?: savedPosition
         player.setMediaItem(MediaItem.fromUri(url))
         player.prepare()
+        if (currentPosition > 0L) player.seekTo(currentPosition)
         player.playWhenReady = true
         playbackError = null
+    }
+
+    // Persist a checkpoint locally while watching and when playback reaches the end.
+    LaunchedEffect(player, animeId, episodeNumber) {
+        while (true) {
+            PlaybackProgress.save(
+                context,
+                animeId,
+                episodeNumber,
+                player.currentPosition,
+                player.duration.coerceAtLeast(0L)
+            )
+            if (player.playbackState == Player.STATE_ENDED) {
+                PlaybackProgress.save(context, animeId, episodeNumber, player.duration, player.duration)
+            }
+            delay(2_000)
+        }
     }
 
     LaunchedEffect(fullscreen) { onOrientation(fullscreen) }
@@ -218,6 +238,18 @@ fun PlayerScreen(
                     activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 } else {
                     activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                }
+            }
+
+            override fun onPlayerError(error: PlaybackException) {
+                playbackError = when (error.errorCode) {
+                    PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+                    PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ->
+                        "انقطع الاتصال أثناء التشغيل. تحقق من الإنترنت ثم أعد المحاولة."
+                    PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED,
+                    PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED ->
+                        "صيغة الفيديو من هذا الخادم غير مدعومة. جرّب خادماً أو جودة أخرى."
+                    else -> "تعذّر تشغيل هذا الرابط. جرّب خادماً آخر أو اضغط إعادة المحاولة."
                 }
             }
         }
