@@ -780,12 +780,12 @@ fun CenterState(title: String, subtitle: String) {
 @Composable
 fun ErrorState(title: String, message: String, onRetry: () -> Unit) {
     Column(
-        Modifier
+        modifier = Modifier
             .fillMaxSize()
+            .widthIn(max = 400.dp)
             .padding(28.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = Modifier.widthIn(max = 400.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Spacer(Modifier.height(90.dp))
         Text(title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
