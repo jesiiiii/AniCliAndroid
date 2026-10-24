@@ -871,6 +871,7 @@ fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: ()
                                     )
                                 }
                             }
+                            }
                         }
                     }
                     if (info.anime.description?.isNotBlank() == true) {
