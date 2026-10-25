@@ -258,10 +258,10 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                         }
                         Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surfaceContainerLowest).clickable { onOpenSearch() }.padding(horizontal = 18.dp, vertical = 16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Icon(Icons.Rounded.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
-                                Text("ابحث عن عالمك القادم...", color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.bodyLarge)
+                                Icon(Icons.Rounded.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                Text("ابحث عن عالمك القادم...", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
                                 Spacer(Modifier.weight(1f))
-                                Text("⌕", color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.headlineMedium)
+                                Text("بحث", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -270,7 +270,7 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                     item {
                         val dayIndex = java.time.LocalDate.now().toEpochDay().mod(vm.trending.size.toLong()).toInt()
                         val featured = vm.trending[dayIndex]
-                        Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(238.dp).clip(RoundedCornerShape(28.dp)).clickable { onOpenAnime(featured) }) {
+                        Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(258.dp).clip(RoundedCornerShape(28.dp)).clickable { onOpenAnime(featured) }) {
                             AsyncImage(model = featured.posterUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                             Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color(0xE5101734)))))
                             Column(Modifier.align(Alignment.BottomStart).padding(20.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
