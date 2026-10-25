@@ -392,7 +392,7 @@ fun AnimeCard(
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = badgeOverride ?: anime.rating.ifBlank { "أنمي" },
+                        text = badgeOverride ?: "اختيار مميز",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onTertiary,
                         fontWeight = FontWeight.Bold,
