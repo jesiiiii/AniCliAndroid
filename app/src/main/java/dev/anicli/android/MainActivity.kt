@@ -619,6 +619,12 @@ fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: ()
     var error by remember { mutableStateOf<String?>(null) }
     var expanded by remember { mutableStateOf(false) }
     var retryKey by remember { mutableStateOf(0) }
+    var highResolutionPoster by remember(animeId) { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(data?.anime?.id) {
+        val anime = data?.anime ?: return@LaunchedEffect
+        highResolutionPoster = SlayerApi.getHighResolutionPoster(anime)
+    }
 
     LaunchedEffect(animeId, retryKey) {
         loading = true
@@ -657,7 +663,7 @@ fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: ()
                                     .background(Color(0xFFF1EEEE))
                             ) {
                                 AsyncImage(
-                                    model = info.anime.posterUrl,
+                                    model = highResolutionPoster ?: info.anime.posterUrl,
                                     contentDescription = "بوستر ${info.anime.title}",
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize()
@@ -668,13 +674,13 @@ fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: ()
                                             listOf(Color.Transparent, Color(0xD9000000), Color(0xF5000000))
                                         ))
                                 )
-                                // A softened duplicate at the foot of the poster creates the cinematic blur.
+                                // A taller, softly blurred duplicate blends into the hero image instead of forming a hard horizontal seam.
                                 AsyncImage(
-                                    model = info.anime.posterUrl,
+                                    model = highResolutionPoster ?: info.anime.posterUrl,
                                     contentDescription = null,
                                     contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxWidth().height(100.dp).align(Alignment.BottomCenter)
-                                        .blur(22.dp)
+                                    modifier = Modifier.fillMaxWidth().height(178.dp).align(Alignment.BottomCenter)
+                                        .blur(30.dp)
                                 )
                                 Box(
                                     Modifier.fillMaxWidth().height(145.dp).align(Alignment.BottomCenter)
