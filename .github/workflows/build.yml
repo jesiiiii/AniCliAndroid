@@ -1,5 +1,5 @@
 name: build APK
-# Verify the latest UI redesign commit on every branch update.
+# Rebuild the merged Uchiha Anime UI as one installable release APK.
 
 on:
   push:
