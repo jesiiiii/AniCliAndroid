@@ -19,7 +19,6 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Spring
@@ -68,8 +67,18 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.key
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.zIndex
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -78,7 +87,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
@@ -114,7 +122,17 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.LottieConstants
+import com.airbnb.lottie.compose.rememberLottieComposition
+import dev.anicli.android.R
+import kotlin.math.abs
 import java.io.IOException
+
+/** Physical device build helper (local-only, mirrors(ci) resolves same versions from maven central). */
+private const val SHARINGAN_SPIN_ASSET = "sharingan_spin.json"
+private const val SHARINGAN_LOOP_ASSET = "sharingan_loop.json"
 
 class HomeViewModel : ViewModel() {
     var latest by mutableStateOf<List<SlayerApi.LatestScreenEpisode>>(emptyList())
@@ -245,7 +263,8 @@ fun UchihaApp() {
         when {
             target.startsWith("details:") -> {
                 val animeId = target.removePrefix("details:")
-                DetailsScreen(
+                EdgeBackGestureOverlay(onBack = { closeDetailsWithoutSharedExit() }) {
+                    DetailsScreen(
                     animeId = animeId,
                     sharedTransitionScope = sharedScope,
                     animatedVisibilityScope = this,
@@ -257,6 +276,7 @@ fun UchihaApp() {
                     },
                     onBack = { closeDetailsWithoutSharedExit() }
                 )
+                }
             }
             else -> HomeScreen(
                 sharedTransitionScope = sharedScope,
@@ -272,7 +292,7 @@ fun UchihaApp() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(
     sharedTransitionScope: SharedTransitionScope,
@@ -284,7 +304,6 @@ fun HomeScreen(
     BackHandler(enabled = searchActive) { searchActive = false }
     val vm: HomeViewModel = viewModel()
     val homeListState = androidx.compose.foundation.lazy.rememberLazyListState()
-    val scrollBlur by animateDpAsState(if (homeListState.isScrollInProgress) 1.6.dp else 0.dp, label = "poster-scroll-blur")
     LaunchedEffect(Unit) {
         if (vm.latest.isEmpty() && vm.trending.isEmpty() && vm.topRated.isEmpty()) vm.load()
     }
@@ -370,6 +389,32 @@ fun HomeScreen(
                         }
                     }
                 }
+                if (vm.trending.isNotEmpty() || vm.topRated.isNotEmpty()) {
+                    item {
+                        val picks = remember(vm.trending, vm.topRated) {
+                            (vm.trending + vm.topRated)
+                                .distinctBy { it.id }
+                                .take(14)
+                        }
+                        if (picks.isNotEmpty()) {
+                            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                                SectionHeading("اختيارنا لك", "قائمة تتسع للقلب", "مختارة")
+                                val picksState = rememberLazyListState()
+                                LazyRow(
+                                    state = picksState,
+                                    contentPadding = PaddingValues(horizontal = 20.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                                    // Velocity-aware fling settling for the horizontal rail.
+                                    flingBehavior = rememberSnapFlingBehavior(lazyListState = picksState)
+                                ) {
+                                    items(picks, key = { "pick:${it.id}" }) { anime ->
+                                        FeaturedPickCard(anime = anime) { onOpenAnime(anime, "") }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 if (vm.latest.isNotEmpty()) {
                     item { SectionHeading("وصل حديثاً", "أحدث الحلقات", "جديد") }
                     item {
@@ -377,7 +422,7 @@ fun HomeScreen(
                             vm.latest.chunked(2).forEach { pair ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                     pair.forEach { ep ->
-                                        PosterTile(title = ep.animeTitle, titleEnglish = ep.animeTitle, badge = "الحلقة ${ep.episodeNumber}", rating = ep.rating ?: "—", modifier = Modifier.weight(1f), blurRadius = scrollBlur, posterUrl = ep.posterUrl, sharedTransitionScope = sharedTransitionScope, animatedVisibilityScope = animatedVisibilityScope, sharedElementKey = "anime-poster:latest:${ep.animeId}") {
+                                        PosterTile(title = ep.animeTitle, titleEnglish = ep.animeTitle, badge = "الحلقة ${ep.episodeNumber}", rating = ep.rating ?: "—", modifier = Modifier.weight(1f), posterUrl = ep.posterUrl, sharedTransitionScope = sharedTransitionScope, animatedVisibilityScope = animatedVisibilityScope, sharedElementKey = "anime-poster:latest:${ep.animeId}") {
                                             onOpenAnime(Anime(id = ep.animeId, title = ep.animeTitle, posterUrl = ep.posterUrl, rating = ep.rating), "anime-poster:latest:${ep.animeId}")
                                         }
                                     }
@@ -393,7 +438,7 @@ fun HomeScreen(
                         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             vm.trending.chunked(2).forEach { pair ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    pair.forEach { anime -> PosterTile(anime.title, anime.titleEn, anime.animeType, anime.rating ?: "—", Modifier.weight(1f), blurRadius = scrollBlur, posterUrl = anime.posterUrl, sharedTransitionScope = sharedTransitionScope, animatedVisibilityScope = animatedVisibilityScope, sharedElementKey = "anime-poster:trending:${anime.id}") { onOpenAnime(anime, "anime-poster:trending:${anime.id}") } }
+                                    pair.forEach { anime -> PosterTile(anime.title, anime.titleEn, anime.animeType, anime.rating ?: "—", Modifier.weight(1f), posterUrl = anime.posterUrl, sharedTransitionScope = sharedTransitionScope, animatedVisibilityScope = animatedVisibilityScope, sharedElementKey = "anime-poster:trending:${anime.id}") { onOpenAnime(anime, "anime-poster:trending:${anime.id}") } }
                                     if (pair.size == 1) Spacer(Modifier.weight(1f))
                                 }
                             }
@@ -406,7 +451,7 @@ fun HomeScreen(
                         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             vm.topRated.chunked(2).forEach { pair ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    pair.forEach { anime -> PosterTile(anime.title, anime.titleEn, anime.animeType, anime.rating, Modifier.weight(1f), blurRadius = scrollBlur, posterUrl = anime.posterUrl, sharedTransitionScope = sharedTransitionScope, animatedVisibilityScope = animatedVisibilityScope, sharedElementKey = "anime-poster:top-rated:${anime.id}") { onOpenAnime(anime, "anime-poster:top-rated:${anime.id}") } }
+                                    pair.forEach { anime -> PosterTile(anime.title, anime.titleEn, anime.animeType, anime.rating, Modifier.weight(1f), posterUrl = anime.posterUrl, sharedTransitionScope = sharedTransitionScope, animatedVisibilityScope = animatedVisibilityScope, sharedElementKey = "anime-poster:top-rated:${anime.id}") { onOpenAnime(anime, "anime-poster:top-rated:${anime.id}") } }
                                     if (pair.size == 1) Spacer(Modifier.weight(1f))
                                 }
                             }
@@ -504,12 +549,72 @@ private fun SectionHeading(eyebrow: String, title: String, tag: String) {
     }
 }
 
+/** Horizontally swipeable recommendation card for the "اختيارنا لك" rail. */
+@Composable
+private fun FeaturedPickCard(
+    anime: Anime,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.96f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "pick-press-scale"
+    )
+    Column(
+        modifier = Modifier
+            .width(178.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clickable(interactionSource = interactionSource, indication = LocalIndication.current, onClick = onClick),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(242.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            SlayerPosterImage(
+                posterUrl = anime.posterUrl,
+                contentDescription = "غلاف ${anime.title}",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color(0x99000000)))))
+            Row(
+                Modifier.align(Alignment.BottomStart).padding(10.dp).clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 10.dp, vertical = 5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text("★", color = Color(0xFF9BA0B0), style = MaterialTheme.typography.labelMedium)
+                Text(anime.rating.ifBlank { "—" }, color = Color.White, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.ExtraBold)
+            }
+        }
+        Text(
+            anime.title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-private fun PosterTile(title: String, titleEnglish: String = title, badge: String?, rating: String, modifier: Modifier = Modifier, blurRadius: androidx.compose.ui.unit.Dp = 0.dp, posterUrl: String? = null, sharedTransitionScope: SharedTransitionScope? = null, animatedVisibilityScope: AnimatedVisibilityScope? = null, sharedElementKey: String? = null, onClick: () -> Unit) {
+private fun PosterTile(title: String, titleEnglish: String = title, badge: String?, rating: String, modifier: Modifier = Modifier, posterUrl: String? = null, sharedTransitionScope: SharedTransitionScope? = null, animatedVisibilityScope: AnimatedVisibilityScope? = null, sharedElementKey: String? = null, onClick: () -> Unit) {
     Column(modifier.fillMaxWidth().springClickable(onClick = onClick), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Box(Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
-            SlayerPosterImage(posterUrl = posterUrl, contentDescription = "غلاف $title", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().blur(blurRadius).sharedPosterElement(
+            SlayerPosterImage(posterUrl = posterUrl, contentDescription = "غلاف $title", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().sharedPosterElement(
                 sharedTransitionScope, animatedVisibilityScope, sharedElementKey, RoundedCornerShape(20.dp)
             ))
             Box(Modifier.fillMaxWidth().height(104.dp).align(Alignment.BottomCenter).background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color(0xCC000000)))))
@@ -529,30 +634,24 @@ private fun PosterTile(title: String, titleEnglish: String = title, badge: Strin
 
 @Composable
 private fun MangekyoSharingan(modifier: Modifier = Modifier) {
-    val angle = remember { Animatable(0f) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            angle.animateTo(360f, animationSpec = tween(durationMillis = 1500))
-            angle.snapTo(0f)
-            delay(1100)
-        }
-    }
-    AsyncImage(
-        model = "https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Mangekyou_Sharingan_Itachi.svg/500px-Mangekyou_Sharingan_Itachi.svg.png",
-        contentDescription = "مانغيكيو شارينغان إيتاتشي",
-        contentScale = ContentScale.Fit,
-        modifier = modifier.graphicsLayer { rotationZ = angle.value }
+    val composition by rememberLottieComposition(LottieCompositionSpec.Asset(SHARINGAN_LOOP_ASSET))
+    LottieAnimation(
+        composition = composition,
+        iterations = LottieConstants.IterateForever,
+        modifier = modifier
     )
 }
 
 @Composable
 private fun UchihaClanCrest(modifier: Modifier = Modifier) {
-    AsyncImage(
-        model = "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Symbole_Uchiwa.svg/500px-Symbole_Uchiwa.svg.png",
-        contentDescription = "شعار عشيرة أوتشيها",
-        contentScale = ContentScale.Fit,
-        modifier = modifier
-    )
+    androidx.compose.ui.res.painterResource(R.drawable.uchiha_clan_crest).let { crest ->
+        androidx.compose.foundation.Image(
+            painter = crest,
+            contentDescription = "شعار عشيرة أوتشيها",
+            contentScale = ContentScale.Fit,
+            modifier = modifier
+        )
+    }
 }
 
 /** Cinematic poster card: editorial typography, clean surfaces, and a confident accent. */
@@ -795,6 +894,10 @@ fun DetailsScreen(
     var error by remember { mutableStateOf<String?>(null) }
     var expanded by remember { mutableStateOf(false) }
     var retryKey by remember { mutableStateOf(0) }
+    var epMeta by remember { mutableStateOf<Map<String, TenraiMeta.EpisodeMeta>>(emptyMap()) }
+    var playRequested by remember { mutableStateOf(false) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val detailsContext = LocalContext.current
     LaunchedEffect(animeId, retryKey) {
         loading = true
         error = null
@@ -805,6 +908,25 @@ fun DetailsScreen(
         } finally {
             loading = false
         }
+    }
+    LaunchedEffect(data) {
+        val info = data ?: return@LaunchedEffect
+        try {
+            val enriched = TenraiMeta.enrich(detailsContext, info.anime.id, info.anime.titleEn, info.episodes)
+            epMeta = enriched.episodes
+        } catch (_: Exception) {
+            // enrichment is additive only; the source-supplied data stands on its own
+        }
+    }
+    fun startPlayback() {
+        if (playRequested) return
+        val first = (data as AnimeWithEpisodes?)?.episodes?.firstOrNull() ?: return
+        playRequested = true
+        scope.launch {
+            delay(900) // collapse twin half-taps into one playback start
+            playRequested = false
+        }
+        onSelectEpisode(first.number)
     }
 
     Scaffold(containerColor = MaterialTheme.colorScheme.background) { innerPadding ->
@@ -826,37 +948,41 @@ fun DetailsScreen(
                         contentPadding = PaddingValues(bottom = 32.dp)
                     ) {
                         item {
-                            Box(Modifier.fillMaxWidth().height(410.dp).clip(RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp)).background(Color(0xFFF1EEEE))) {
-                                SlayerPosterImage(posterUrl = info.anime.posterUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().blur(34.dp))
-                                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.20f)))
-                                IconButton(onClick = onBack, modifier = Modifier.padding(14.dp).align(Alignment.TopStart).background(Color.Black.copy(alpha = 0.42f), CircleShape)) {
-                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "رجوع", tint = Color.White)
-                                }
-                                Row(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(start = 22.dp, end = 22.dp, bottom = 26.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                                    Box(Modifier.width(112.dp).height(158.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
-                                        SlayerPosterImage(
-                                            posterUrl = info.anime.posterUrl,
-                                            contentDescription = "بوستر ${info.anime.title}",
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier.fillMaxSize().sharedPosterElement(
-                                                sharedTransitionScope, animatedVisibilityScope, sharedElementKey, RoundedCornerShape(16.dp)
+                            Box(Modifier.fillMaxWidth().height(446.dp)) {
+                                Box(Modifier.fillMaxWidth().height(410.dp).clip(RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp)).background(Color(0xFFF1EEEE))) {
+                                    SlayerPosterImage(posterUrl = info.anime.posterUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().blur(34.dp))
+                                    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.20f)))
+                                    IconButton(onClick = onBack, modifier = Modifier.padding(14.dp).align(Alignment.TopStart).background(Color.Black.copy(alpha = 0.42f), CircleShape)) {
+                                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "رجوع", tint = Color.White)
+                                    }
+                                    Row(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(start = 22.dp, end = 22.dp, bottom = 64.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                                        Box(Modifier.width(112.dp).height(158.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
+                                            SlayerPosterImage(
+                                                posterUrl = info.anime.posterUrl,
+                                                contentDescription = "بوستر ${info.anime.title}",
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier.fillMaxSize().sharedPosterElement(
+                                                    sharedTransitionScope, animatedVisibilityScope, sharedElementKey, RoundedCornerShape(16.dp)
+                                                )
                                             )
-                                        )
-                                    }
-                                    Column(Modifier.weight(1f).padding(bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Text(info.anime.title, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Start, color = Color.White, fontWeight = FontWeight.ExtraBold, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                                        if (info.anime.titleEn.isNotBlank() && info.anime.titleEn != info.anime.title) {
-                                            Text(info.anime.titleEn, style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.82f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         }
-                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                            Icon(Icons.Rounded.Star, contentDescription = "التقييم", tint = Color(0xFFFFD166), modifier = Modifier.size(18.dp))
-                                            Text(info.anime.rating.ifBlank { "—" }, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                        }
-                                        Button(onClick = { info.episodes.firstOrNull()?.let { onSelectEpisode(it.number) } }, enabled = info.episodes.isNotEmpty(), shape = RoundedCornerShape(50), contentPadding = PaddingValues(horizontal = 22.dp, vertical = 10.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = Color.White, disabledContainerColor = Color.DarkGray)) {
-                                            Text("▶  ابدأ المشاهدة", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                        Column(Modifier.weight(1f).padding(bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Text(info.anime.title, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Start, color = Color.White, fontWeight = FontWeight.ExtraBold, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                                            if (info.anime.titleEn.isNotBlank() && info.anime.titleEn != info.anime.title) {
+                                                Text(info.anime.titleEn, style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.82f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            }
+                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                                Icon(Icons.Rounded.Star, contentDescription = "التقييم", tint = Color(0xFFFFD166), modifier = Modifier.size(18.dp))
+                                                Text(info.anime.rating.ifBlank { "—" }, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                            }
                                         }
                                     }
                                 }
+                                SplitPlayButton(
+                                    enabled = info.episodes.isNotEmpty(),
+                                    onClick = { startPlayback() },
+                                    modifier = Modifier.align(Alignment.BottomCenter).zIndex(2f)
+                                )
                             }
                         }
                         item {
@@ -935,30 +1061,53 @@ fun DetailsScreen(
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
                                     items(info.episodes, key = { ep -> ep.number + "-" + info.anime.id }) { ep ->
+                                        val meta = epMeta[ep.number]
+                                        val hasVerifiedThumb = !meta?.thumbnailUrl.isNullOrBlank()
                                         Card(
                                             onClick = { onSelectEpisode(ep.number) },
-                                            modifier = Modifier.widthIn(min = 142.dp, max = 170.dp),
+                                            modifier = Modifier.widthIn(min = 152.dp, max = 176.dp),
                                             shape = RoundedCornerShape(20.dp),
                                             colors = androidx.compose.material3.CardDefaults.cardColors(
                                                 containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
                                             ),
                                             elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 2.dp)
                                         ) {
-                                            Column(
-                                                Modifier.padding(14.dp).height(88.dp),
-                                                verticalArrangement = Arrangement.SpaceBetween
-                                            ) {
+                                            Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                                 Box(
-                                                    Modifier.clip(RoundedCornerShape(10.dp))
-                                                        .background(MaterialTheme.colorScheme.primaryContainer)
-                                                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                                                    Modifier
+                                                        .fillMaxWidth()
+                                                        .height(96.dp)
+                                                        .clip(RoundedCornerShape(14.dp))
+                                                        .background(MaterialTheme.colorScheme.surfaceVariant)
                                                 ) {
-                                                    Text("الحلقة ${ep.number}", color = MaterialTheme.colorScheme.onPrimaryContainer, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                                    AsyncImage(
+                                                        model = if (hasVerifiedThumb) meta?.thumbnailUrl else info.anime.posterUrl,
+                                                        contentDescription = if (hasVerifiedThumb) "لقطة من الحلقة ${ep.number}" else "غلاف الأنمي",
+                                                        contentScale = ContentScale.Crop,
+                                                        modifier = Modifier.fillMaxSize()
+                                                    )
+                                                    Box(Modifier.fillMaxWidth().height(44.dp).align(Alignment.BottomCenter).background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color(0xB3000000)))))
+                                                    Text(
+                                                        "الحلقة ${ep.number}",
+                                                        color = Color.White,
+                                                        style = MaterialTheme.typography.labelMedium,
+                                                        fontWeight = FontWeight.Bold,
+                                                        modifier = Modifier.align(Alignment.BottomStart).padding(8.dp)
+                                                    )
+                                                    if (!hasVerifiedThumb) {
+                                                        Text(
+                                                            "غلاف الأنمي",
+                                                            color = Color.White.copy(alpha = 0.75f),
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp)
+                                                        )
+                                                    }
                                                 }
                                                 Text(
-                                                    ep.title.ifBlank { "شاهد الحلقة الآن" },
+                                                    ep.title.ifBlank { meta?.title.orEmpty().ifBlank { "شاهد الحلقة الآن" } },
                                                     color = MaterialTheme.colorScheme.onSurface,
                                                     style = MaterialTheme.typography.bodySmall,
+                                                    fontWeight = FontWeight.Bold,
                                                     maxLines = 2,
                                                     overflow = TextOverflow.Ellipsis
                                                 )
@@ -969,11 +1118,152 @@ fun DetailsScreen(
                                 }
                             }
                         }
-                    }
-                }
-            }
+                     }
+                 }
+             }
         }
     }
+}
+
+/** Wrapper: renders the screen and listens for a start-edge swipe with velocity-aware settling. */
+@Composable
+private fun EdgeBackGestureOverlay(
+    onBack: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    Box(Modifier.fillMaxSize()) {
+        content()
+        Box(
+            Modifier
+                .align(Alignment.CenterStart)
+                .fillMaxHeight()
+                .width(26.dp)
+                .pointerInput(Unit) {
+                    var totalDrag = 0f
+                    val tracker = androidx.compose.ui.input.pointer.util.VelocityTracker()
+                    detectHorizontalDragGestures(
+                        onDragStart = {
+                            totalDrag = 0f
+                            tracker.resetTracking()
+                        },
+                        onHorizontalDrag = { change, dragAmount ->
+                            totalDrag += dragAmount
+                            tracker.addPosition(change.uptimeMillis, change.position)
+                            change.consume()
+                        },
+                        onDragEnd = {
+                            val velocity = tracker.calculateVelocity().x
+                            if (abs(totalDrag) > 170f || abs(velocity) > 1200f) {
+                                onBack()
+                            }
+                        }
+                    )
+                }
+        )
+    }
+}
+
+/**
+ * Split playback button: the upper half rides the bottom edge of the hero poster and the
+ * lower half continues below it. Both halves body into the same playback flow, and the
+ * Lottie-powered Sharingan spins once per activation.
+ */
+@Composable
+private fun SplitPlayButton(
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.95f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "split-play-press"
+    )
+    val haptics = LocalHapticFeedback.current
+    var spinKey by remember { mutableStateOf(0) }
+    val pill = MaterialTheme.colorScheme.primary
+    val surfaceColor by animateColorAsState(
+        targetValue = if (enabled) pill else Color.DarkGray,
+        animationSpec = tween(150),
+        label = "split-play-color"
+    )
+    Box(
+        modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .testTag("split-play-button")
+            .clickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current,
+                enabled = enabled
+            ) {
+                spinKey += 1
+                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
+            .width(236.dp)
+            .height(66.dp)
+    ) {
+        Box(
+            Modifier.align(Alignment.TopCenter).width(236.dp).height(31.dp)
+                .background(
+                    surfaceColor,
+                    RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp, bottomStart = 0.dp, bottomEnd = 0.dp)
+                )
+        )
+        Box(
+            Modifier.align(Alignment.BottomCenter).width(236.dp).height(35.dp)
+                .background(
+                    surfaceColor,
+                    RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp, bottomStart = 26.dp, bottomEnd = 26.dp)
+                )
+        )
+        Row(
+            Modifier.align(Alignment.Center).padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(9.dp)
+        ) {
+            if (spinKey > 0) {
+                key(spinKey) {
+                    SpinSharinganOnce(Modifier.size(26.dp))
+                }
+            } else {
+                androidx.compose.foundation.Image(
+                    painter = androidx.compose.ui.res.painterResource(R.drawable.mangekyo_sharingan_itachi),
+                    contentDescription = "مانغيكيو شارينغان",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+            Text(
+                "ابدأ المشاهدة",
+                color = Color.White,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.ExtraBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+/** One-shot Sharingan spin driven by the Airbnb Lottie compose runtime. */
+@Composable
+private fun SpinSharinganOnce(modifier: Modifier = Modifier) {
+    val composition by rememberLottieComposition(LottieCompositionSpec.Asset(SHARINGAN_SPIN_ASSET))
+    LottieAnimation(
+        composition = composition,
+        isPlaying = true,
+        iterations = 1,
+        modifier = modifier
+    )
 }
 
 @Composable
