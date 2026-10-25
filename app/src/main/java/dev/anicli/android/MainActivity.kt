@@ -393,13 +393,13 @@ private fun SlayerPosterImage(posterUrl: String?, contentDescription: String?, c
 @Composable
 private fun CapsuleNavigationBar(selected: String, onHome: () -> Unit, onSearch: () -> Unit) {
     val capsule = RoundedCornerShape(50)
-    val homeSelected by androidx.compose.animation.core.animateDpAsState(
-        targetValue = if (selected == "home") 1.dp else 0.dp,
+    val homePillColor by animateColorAsState(
+        targetValue = if (selected == "home") MaterialTheme.colorScheme.surface else Color.Transparent,
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
         label = "home-pill-selection"
     )
-    val searchSelected by androidx.compose.animation.core.animateDpAsState(
-        targetValue = if (selected == "search") 1.dp else 0.dp,
+    val searchPillColor by animateColorAsState(
+        targetValue = if (selected == "search") MaterialTheme.colorScheme.surface else Color.Transparent,
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
         label = "search-pill-selection"
     )
@@ -414,7 +414,7 @@ private fun CapsuleNavigationBar(selected: String, onHome: () -> Unit, onSearch:
             animationSpec = tween(150),
             label = "search-icon-tint"
         )
-        Row(Modifier.weight(1f).clip(capsule).background(if (homeSelected > 0.dp) MaterialTheme.colorScheme.surface else Color.Transparent).springClickable(onClick = onHome).padding(vertical = 11.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.weight(1f).clip(capsule).background(homePillColor).springClickable(onClick = onHome).padding(vertical = 11.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.Home, contentDescription = "الرئيسية", tint = homeColor, modifier = Modifier.size(21.dp))
             AnimatedVisibility(visible = selected == "home", enter = fadeIn(tween(130)) + expandHorizontally(), exit = fadeOut(tween(90)) + shrinkHorizontally()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -423,7 +423,7 @@ private fun CapsuleNavigationBar(selected: String, onHome: () -> Unit, onSearch:
                 }
             }
         }
-        Row(Modifier.weight(1f).clip(capsule).background(if (searchSelected > 0.dp) MaterialTheme.colorScheme.surface else Color.Transparent).springClickable(onClick = onSearch).padding(vertical = 11.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.weight(1f).clip(capsule).background(searchPillColor).springClickable(onClick = onSearch).padding(vertical = 11.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.Search, contentDescription = "بحث", tint = searchColor, modifier = Modifier.size(21.dp))
             AnimatedVisibility(visible = selected == "search", enter = fadeIn(tween(130)) + expandHorizontally(), exit = fadeOut(tween(90)) + shrinkHorizontally()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
