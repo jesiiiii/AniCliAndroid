@@ -26,7 +26,7 @@ object DirectEpisodeStreams {
             for (i in 0 until servers.length()) {
                 val server = servers.optJSONObject(i) ?: continue
                 val url = server.optString("episode_url", "").trim()
-                if (!isDirectMediaUrl(url)) continue
+                if (!isDirectMediaUrl(url, server.optString("episode_server_name", ""))) continue
                 val serverName = server.optString("episode_server_name", "Direct").trim()
                     .ifBlank { "Direct" }
                 val path = Uri.parse(url).encodedPath.orEmpty().lowercase()
@@ -42,10 +42,13 @@ object DirectEpisodeStreams {
             found.values.toList()
         }
 
-    private fun isDirectMediaUrl(url: String): Boolean {
+    private fun isDirectMediaUrl(url: String, serverName: String): Boolean {
         if (!url.startsWith("https://") && !url.startsWith("http://")) return false
         val path = runCatching { Uri.parse(url).encodedPath.orEmpty().lowercase() }.getOrDefault("")
+        val name = serverName.lowercase()
         return path.endsWith(".mp4") || path.endsWith(".m3u8") ||
-            path.endsWith(".mpd") || path.endsWith(".m4v") || path.endsWith(".webm")
+            path.endsWith(".mpd") || path.endsWith(".m4v") || path.endsWith(".webm") ||
+            url.contains("ab-hunter", ignoreCase = true) ||
+            name in setOf("direct", "mp4", "hls", "m3u8", "dash")
     }
 }
