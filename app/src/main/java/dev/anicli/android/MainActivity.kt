@@ -539,45 +539,6 @@ private fun UchihaClanCrest(modifier: Modifier = Modifier) {
     )
 }
 
-@Composable
-private fun UchihaClanCrest(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        val cx = size.width / 2f
-        val top = size.height * 0.06f
-        val fanBottom = size.height * 0.78f
-        val left = size.width * 0.10f
-        val right = size.width * 0.90f
-        val centerX = cx
-        val handleTop = size.height * 0.70f
-        val handleBottom = size.height * 0.98f
-        val fan = androidx.compose.ui.graphics.Path().apply {
-            moveTo(left, fanBottom)
-            quadraticTo(size.width * 0.02f, size.height * 0.42f, size.width * 0.20f, top + size.height * 0.08f)
-            quadraticTo(centerX, top - size.height * 0.05f, size.width * 0.80f, top + size.height * 0.08f)
-            quadraticTo(size.width * 0.98f, size.height * 0.42f, right, fanBottom)
-            quadraticTo(centerX, size.height * 0.91f, left, fanBottom)
-            close()
-        }
-        drawPath(fan, Color(0xFF151318))
-        val upper = androidx.compose.ui.graphics.Path().apply {
-            moveTo(left + size.width * 0.04f, fanBottom * 0.94f)
-            quadraticTo(cx, size.height * 0.38f, right - size.width * 0.04f, fanBottom * 0.94f)
-            lineTo(cx, size.height * 0.57f)
-            close()
-        }
-        drawPath(upper, Color(0xFFCC1728))
-        val lower = androidx.compose.ui.graphics.Path().apply {
-            moveTo(left + size.width * 0.04f, fanBottom * 0.94f)
-            lineTo(cx, size.height * 0.57f)
-            lineTo(right - size.width * 0.04f, fanBottom * 0.94f)
-            quadraticTo(cx, size.height * 0.83f, left + size.width * 0.04f, fanBottom * 0.94f)
-            close()
-        }
-        drawPath(lower, Color(0xFFF7F3F2))
-        drawLine(Color(0xFF151318), Offset(cx, handleTop), Offset(cx, handleBottom), strokeWidth = size.width * 0.09f)
-    }
-}
-
 /** Cinematic poster card: editorial typography, clean surfaces, and a confident accent. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
