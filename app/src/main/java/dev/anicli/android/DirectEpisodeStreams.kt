@@ -73,9 +73,9 @@ object DirectEpisodeStreams {
     }
 
     private fun resolveOkru(link: String): String? {
-        val id = Regex("""/video/(\\d+)""").find(link)?.groupValues?.get(1) ?: return null
+        val id = Regex("""/video/(\d+)""").find(link)?.groupValues?.get(1) ?: return null
         val html = fetchText("https://ok.ru/videoembed/$id") ?: return null
-        val options = Regex("""data-options=["'](\\{.*?\\})["']""").find(html)?.groupValues?.get(1)
+        val options = Regex("""data-options=["'](\{.*?\})["']""").find(html)?.groupValues?.get(1)
             ?: return null
         return runCatching {
             val json = JSONObject(options.replace("&quot;", "\"").replace("&amp;", "&"))
@@ -88,14 +88,14 @@ object DirectEpisodeStreams {
 
     private fun resolveMp4Upload(link: String): String? {
         val html = fetchText(link) ?: return null
-        return Regex("""player\\.src\\(\\{\\s*type:\\s*["']video/mp4["'],\\s*src:\\s*["'](https?://[^"']+)["']""")
+        return Regex("""player\.src\(\{\s*type:\s*["']video/mp4["'],\s*src:\s*["'](https?://[^"']+)["']""")
             .find(html)?.groupValues?.get(1)
-            ?: Regex("""src:\\s*["'](https?://[^"']+\\.mp4[^"']*)["']""").find(html)?.groupValues?.get(1)
+            ?: Regex("""src:\s*["'](https?://[^"']+\.mp4[^"']*)["']""").find(html)?.groupValues?.get(1)
     }
 
     private fun resolveGoodstream(link: String): String? {
         val html = fetchText(link) ?: return null
-        return Regex("""["'](https?://[^"']+\\.m3u8[^"']*)["']""").find(html)?.groupValues?.get(1)
+        return Regex("""["'](https?://[^"']+\.m3u8[^"']*)["']""").find(html)?.groupValues?.get(1)
     }
 
     private fun isDirectMediaUrl(url: String, serverName: String): Boolean {
