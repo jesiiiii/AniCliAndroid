@@ -3,6 +3,13 @@ package dev.anicli.android
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -49,7 +56,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -234,6 +243,8 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                 item {
                     Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp).padding(top = 18.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            MangekyoSharingan(Modifier.size(54.dp))
+                            Spacer(Modifier.size(12.dp))
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text("UCHIHA", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.Black)
                                 Text("Anime", style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.ExtraBold)
@@ -272,10 +283,15 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                 if (vm.latest.isNotEmpty()) {
                     item { SectionHeading("وصل حديثاً", "أحدث الحلقات", "جديد") }
                     item {
-                        LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            items(vm.latest, key = { "l${it.animeId}-${it.episodeNumber}" }) { ep ->
-                                PosterTile(title = ep.animeTitle, posterUrl = ep.posterUrl, badge = "الحلقة ${ep.episodeNumber}", rating = ep.rating) {
-                                    onOpenAnime(Anime(id = ep.animeId, title = ep.animeTitle, posterUrl = ep.posterUrl, rating = ep.rating))
+                        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            vm.latest.chunked(2).forEach { pair ->
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    pair.forEach { ep ->
+                                        PosterTile(title = ep.animeTitle, posterUrl = ep.posterUrl, badge = "الحلقة ${ep.episodeNumber}", rating = ep.rating, modifier = Modifier.weight(1f)) {
+                                            onOpenAnime(Anime(id = ep.animeId, title = ep.animeTitle, posterUrl = ep.posterUrl, rating = ep.rating))
+                                        }
+                                    }
+                                    if (pair.size == 1) Spacer(Modifier.weight(1f))
                                 }
                             }
                         }
@@ -284,9 +300,12 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                 if (vm.trending.isNotEmpty()) {
                     item { SectionHeading("على الرادار", "الأكثر مشاهدة", "ترند") }
                     item {
-                        LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            items(vm.trending, key = { "t${it.id}" }) { anime ->
-                                PosterTile(anime.title, anime.posterUrl, anime.animeType, anime.rating) { onOpenAnime(anime) }
+                        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            vm.trending.chunked(2).forEach { pair ->
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    pair.forEach { anime -> PosterTile(anime.title, anime.posterUrl, anime.animeType, anime.rating, Modifier.weight(1f)) { onOpenAnime(anime) } }
+                                    if (pair.size == 1) Spacer(Modifier.weight(1f))
+                                }
                             }
                         }
                     }
@@ -294,9 +313,12 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                 if (vm.topRated.isNotEmpty()) {
                     item { SectionHeading("مختارة بعناية", "الأعلى تقييماً", "TOP") }
                     item {
-                        LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            items(vm.topRated, key = { "r${it.id}" }) { anime ->
-                                PosterTile(anime.title, anime.posterUrl, anime.animeType, anime.rating) { onOpenAnime(anime) }
+                        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            vm.topRated.chunked(2).forEach { pair ->
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    pair.forEach { anime -> PosterTile(anime.title, anime.posterUrl, anime.animeType, anime.rating, Modifier.weight(1f)) { onOpenAnime(anime) } }
+                                    if (pair.size == 1) Spacer(Modifier.weight(1f))
+                                }
                             }
                         }
                     }
@@ -330,19 +352,50 @@ private fun SectionHeading(eyebrow: String, title: String, tag: String) {
 }
 
 @Composable
-private fun PosterTile(title: String, posterUrl: String, badge: String?, rating: String, onClick: () -> Unit) {
-    Column(Modifier.widthIn(min = 142.dp, max = 154.dp).clickable(onClick = onClick), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Box(Modifier.fillMaxWidth().height(202.dp).clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
-            AsyncImage(model = posterUrl, contentDescription = "غلاف $title", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-            Box(Modifier.fillMaxWidth().height(72.dp).align(Alignment.BottomCenter).background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color(0xD9000000)))))
+private fun PosterTile(title: String, posterUrl: String, badge: String?, rating: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Column(modifier.fillMaxWidth().clickable(onClick = onClick), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box(Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
+            AsyncImage(model = posterUrl, contentDescription = "غلاف $title", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().blur(0.35.dp))
+            Box(Modifier.fillMaxWidth().height(104.dp).align(Alignment.BottomCenter).background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color(0xCC000000)))))
             if (!badge.isNullOrBlank()) {
-                Text(badge, modifier = Modifier.align(Alignment.TopStart).padding(8.dp).clip(RoundedCornerShape(9.dp)).background(Color(0xFFF47E68)).padding(horizontal = 8.dp, vertical = 5.dp), color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, maxLines = 1)
+                Text(badge, modifier = Modifier.align(Alignment.TopStart).padding(8.dp).clip(RoundedCornerShape(9.dp)).background(Color(0xFFF04444).copy(alpha = 0.94f)).padding(horizontal = 8.dp, vertical = 5.dp), color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, maxLines = 1)
             }
             if (rating.isNotBlank() && rating != "—") {
-                Text("★ $rating", modifier = Modifier.align(Alignment.BottomStart).padding(10.dp), color = Color.White, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                Row(Modifier.align(Alignment.BottomCenter).padding(bottom = 10.dp).clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.48f)).padding(horizontal = 14.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text("★", color = Color(0xFFFFD1D1), style = MaterialTheme.typography.labelMedium)
+                    Text(rating, color = Color.White, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.ExtraBold)
+                }
             }
         }
-        Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis, minLines = 2)
+    }
+}
+
+@Composable
+private fun MangekyoSharingan(modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "mangekyo-spin")
+    val angle by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(animation = tween(5200, easing = LinearEasing), repeatMode = RepeatMode.Restart),
+        label = "mangekyo-angle"
+    )
+    Canvas(modifier = modifier) {
+        val cx = size.width / 2f
+        val cy = size.height / 2f
+        val radius = size.minDimension * 0.47f
+        drawCircle(Color(0xFFB80F24), radius = radius, center = Offset(cx, cy))
+        rotate(angle, pivot = Offset(cx, cy)) {
+            drawCircle(Color(0xFF17131A), radius = radius * 0.78f, center = Offset(cx, cy), style = androidx.compose.ui.graphics.drawscope.Stroke(width = radius * 0.055f))
+            drawCircle(Color(0xFF17131A), radius = radius * 0.20f, center = Offset(cx, cy))
+            repeat(3) { index ->
+                rotate(index * 120f, pivot = Offset(cx, cy)) {
+                    drawCircle(Color(0xFF17131A), radius = radius * 0.14f, center = Offset(cx, cy - radius * 0.53f))
+                    drawCircle(Color(0xFF17131A), radius = radius * 0.105f, center = Offset(cx + radius * 0.18f, cy - radius * 0.37f))
+                }
+            }
+        }
+        drawCircle(Color(0xFFFAF8F4), radius = radius * 0.07f, center = Offset(cx, cy))
     }
 }
 
