@@ -526,7 +526,7 @@ private fun MangekyoSharingan(modifier: Modifier = Modifier) {
 }
 
 /** Cinematic poster card: editorial typography, clean surfaces, and a confident accent. */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun AnimeCard(
     anime: Anime,
@@ -638,7 +638,7 @@ fun AnimeCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun LatestEpisodeCard(
     episode: SlayerApi.LatestScreenEpisode,
