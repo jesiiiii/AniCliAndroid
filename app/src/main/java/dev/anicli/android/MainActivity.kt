@@ -687,7 +687,7 @@ fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: ()
                                     .clip(RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp))
                                     .background(Color(0xFFF1EEEE))
                             ) {
-                                AsyncImage(
+                                JikanPosterImage(
                                     title = info.anime.title,
                                     titleEnglish = info.anime.titleEn,
                                     contentDescription = "بوستر ${info.anime.title}",
@@ -701,7 +701,7 @@ fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: ()
                                         ))
                                 )
                                 // A taller, softly blurred duplicate blends into the hero image instead of forming a hard horizontal seam.
-                                AsyncImage(
+                                JikanPosterImage(
                                     title = info.anime.title,
                                     titleEnglish = info.anime.titleEn,
                                     contentDescription = null,
