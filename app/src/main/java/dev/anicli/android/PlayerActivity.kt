@@ -174,19 +174,30 @@ fun PlayerScreen(
         val resolved = try {
             SlayerApi.resolveStreams(animeId, episodeNumber)
         } catch (e: Exception) {
-            resolveState = ResolveState(resolving = false, error = PlayerUi.friendly(e, "تعذّر تجهيز الحلقة."))
-            return@LaunchedEffect
+            SlayerApi.ResolvedStreams(
+                emptyList(),
+                PlayerUi.friendly(e, "تعذّر تجهيز الحلقة.")
+            )
         }
-        if (resolved.streams.isEmpty()) {
+        // Keep the provider's CDN/multi-host resolution, then add direct MP4/HLS/DASH
+        // URLs from the episode payload. Those direct entries were previously discarded.
+        val directStreams = runCatching {
+            DirectEpisodeStreams.resolve(animeId, episodeNumber)
+        }.getOrDefault(emptyList())
+        val streams = (resolved.streams + directStreams)
+            .filter { it.url.isNotBlank() }
+            .distinctBy { it.url }
+            .sortedByDescending { it.rank() }
+        if (streams.isEmpty()) {
             resolveState = ResolveState(
                 resolving = false,
-                error = resolved.diagnostic ?: "لم يتم العثور على روابط مشاهدة لهذه الحلقة."
+                error = resolved.diagnostic ?: "لم يتم العثور على روابط مشاهدة قابلة للتشغيل لهذه الحلقة."
             )
             return@LaunchedEffect
         }
-        resolveState = ResolveState(resolving = false, streams = resolved.streams, selected = 0)
-        // Start the first available stream automatically; the quality chips remain available for switching.
-        activeUrl = resolved.streams.first().url
+        resolveState = ResolveState(resolving = false, streams = streams, selected = 0)
+        // Start the first available stream automatically; allow switching to the other sources.
+        activeUrl = streams.first().url
     }
 
     // Avoid separate Range/content-type probes: valid hosts may reject them even when Media3 can play.
