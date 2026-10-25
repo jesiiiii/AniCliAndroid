@@ -78,6 +78,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.geometry.Offset
@@ -212,7 +213,6 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun UchihaApp() {
     val context = LocalContext.current
-    var screen by rememberSaveable { mutableStateOf("home") }
     var selectedAnimeId by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedAnimeTitle by rememberSaveable { mutableStateOf("") }
     var selectedAnimeSharedKey by rememberSaveable { mutableStateOf("") }
@@ -220,14 +220,10 @@ fun UchihaApp() {
         selectedAnimeSharedKey = ""
         selectedAnimeId = null
     }
-    BackHandler(enabled = selectedAnimeId != null || screen == "search") {
-        if (selectedAnimeId != null) closeDetailsWithoutSharedExit() else screen = "home"
+    BackHandler(enabled = selectedAnimeId != null) {
+        closeDetailsWithoutSharedExit()
     }
-    val destination = when {
-        selectedAnimeId != null -> "details:${selectedAnimeId}"
-        screen == "search" -> "search"
-        else -> "home"
-    }
+    val destination = if (selectedAnimeId != null) "details:${selectedAnimeId}" else "home"
 
     SharedTransitionLayout {
         val sharedScope = this
@@ -246,7 +242,7 @@ fun UchihaApp() {
                     animeId = animeId,
                     sharedTransitionScope = sharedScope,
                     animatedVisibilityScope = this,
-                    sharedElementKey = selectedAnimeSharedKey.ifBlank { "anime-poster:details:$animeId" },
+                    sharedElementKey = selectedAnimeSharedKey,
                     onSelectEpisode = { number ->
                         context.startActivity(
                             PlayerActivity.intent(context, animeId, selectedAnimeTitle, number)
@@ -255,19 +251,9 @@ fun UchihaApp() {
                     onBack = { closeDetailsWithoutSharedExit() }
                 )
             }
-            target == "search" -> SearchScreen(
-                onBack = { screen = "home" },
-                sharedTransitionScope = sharedScope,
-                animatedVisibilityScope = this
-            ) { anime, sharedKey ->
-                selectedAnimeId = anime.id
-                selectedAnimeTitle = anime.title
-                selectedAnimeSharedKey = sharedKey
-            }
             else -> HomeScreen(
                 sharedTransitionScope = sharedScope,
                 animatedVisibilityScope = this,
-                onOpenSearch = { screen = "search" },
                 onOpenAnime = { anime, sharedKey ->
                     selectedAnimeId = anime.id
                     selectedAnimeTitle = anime.title
@@ -284,17 +270,25 @@ fun UchihaApp() {
 fun HomeScreen(
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
-    onOpenSearch: () -> Unit,
     onOpenAnime: (Anime, String) -> Unit
 ) {
+    var searchActive by rememberSaveable { mutableStateOf(false) }
+    BackHandler(enabled = searchActive) { searchActive = false }
     val vm: HomeViewModel = viewModel()
     val homeListState = androidx.compose.foundation.lazy.rememberLazyListState()
     val scrollBlur by animateDpAsState(if (homeListState.isScrollInProgress) 1.6.dp else 0.dp, label = "poster-scroll-blur")
     LaunchedEffect(Unit) {
         if (vm.latest.isEmpty() && vm.trending.isEmpty() && vm.topRated.isEmpty()) vm.load()
     }
-    Scaffold(containerColor = MaterialTheme.colorScheme.background, bottomBar = { CapsuleNavigationBar(selected = "home", onHome = {}, onSearch = onOpenSearch) }) { innerPadding ->
-        when {
+    Scaffold(containerColor = MaterialTheme.colorScheme.background, bottomBar = { CapsuleNavigationBar(selected = "home", onHome = {}, onSearch = { searchActive = true }) }) { innerPadding ->
+        if (searchActive) {
+            SearchScreen(
+                onBack = { searchActive = false },
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+                onOpenAnime = onOpenAnime
+            )
+        } else when {
             vm.loading && vm.latest.isEmpty() -> Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
@@ -333,7 +327,7 @@ fun HomeScreen(
                             Modifier.fillMaxWidth()
                                 .clip(RoundedCornerShape(22.dp))
                                 .background(Color(0xFFF0EEEE))
-                                .clickable { onOpenSearch() }
+                                .clickable { searchActive = true }
                                 .padding(horizontal = 18.dp, vertical = 16.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -451,7 +445,7 @@ private fun CapsuleNavigationBar(selected: String, onHome: () -> Unit, onSearch:
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
         label = "search-pill-selection"
     )
-    Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background).padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 10.dp).clip(capsule).background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+    Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 6.dp, bottom = 22.dp).shadow(12.dp, capsule).clip(capsule).background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         val homeColor by animateColorAsState(
             targetValue = if (selected == "home") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             animationSpec = tween(150),
@@ -527,46 +521,22 @@ private fun MangekyoSharingan(modifier: Modifier = Modifier) {
             delay(1100)
         }
     }
-    Canvas(modifier = modifier) {
-        val cx = size.width / 2f
-        val cy = size.height / 2f
-        val radius = size.minDimension * 0.47f
-        drawCircle(Color(0xFFB90016), radius = radius, center = Offset(cx, cy))
-        drawCircle(
-            Color(0xFF09090B),
-            radius = radius,
-            center = Offset(cx, cy),
-            style = androidx.compose.ui.graphics.drawscope.Stroke(width = radius * 0.075f)
-        )
-        rotate(angle.value, pivot = Offset(cx, cy)) {
-            repeat(3) { index ->
-                rotate(index * 120f, pivot = Offset(cx, cy)) {
-                    val blade = androidx.compose.ui.graphics.Path().apply {
-                        moveTo(cx - radius * 0.10f, cy - radius * 0.08f)
-                        cubicTo(
-                            cx - radius * 0.42f, cy - radius * 0.34f,
-                            cx - radius * 0.32f, cy - radius * 0.82f,
-                            cx + radius * 0.02f, cy - radius * 0.93f
-                        )
-                        cubicTo(
-                            cx + radius * 0.10f, cy - radius * 0.60f,
-                            cx + radius * 0.39f, cy - radius * 0.47f,
-                            cx + radius * 0.56f, cy - radius * 0.22f
-                        )
-                        cubicTo(
-                            cx + radius * 0.29f, cy - radius * 0.34f,
-                            cx + radius * 0.12f, cy - radius * 0.13f,
-                            cx - radius * 0.10f, cy - radius * 0.08f
-                        )
-                        close()
-                    }
-                    drawPath(blade, Color(0xFF08080A))
-                }
-            }
-        }
-        drawCircle(Color(0xFF08080A), radius = radius * 0.105f, center = Offset(cx, cy))
-        drawCircle(Color(0xFFB90016), radius = radius * 0.052f, center = Offset(cx, cy))
-    }
+    AsyncImage(
+        model = "https://upload.wikimedia.org/wikipedia/commons/1/17/Mangekyou_Sharingan_Itachi.svg",
+        contentDescription = "مانغيكيو شارينغان إيتاتشي",
+        contentScale = ContentScale.Fit,
+        modifier = modifier.graphicsLayer { rotationZ = angle.value }
+    )
+}
+
+@Composable
+private fun UchihaClanCrest(modifier: Modifier = Modifier) {
+    AsyncImage(
+        model = "https://upload.wikimedia.org/wikipedia/commons/3/3f/Symbole_Uchiwa.svg",
+        contentDescription = "شعار عشيرة أوتشيها",
+        contentScale = ContentScale.Fit,
+        modifier = modifier
+    )
 }
 
 @Composable
@@ -752,7 +722,7 @@ fun SearchScreen(
     var query by rememberSaveable { mutableStateOf("") }
     Scaffold(
         modifier = Modifier.background(MaterialTheme.colorScheme.background),
-        bottomBar = { CapsuleNavigationBar(selected = "search", onHome = onBack, onSearch = {}) }
+        
     ) { innerPadding ->
         Column(
             Modifier
