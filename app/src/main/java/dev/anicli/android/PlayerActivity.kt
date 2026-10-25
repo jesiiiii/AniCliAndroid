@@ -69,10 +69,13 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import dev.anicli.android.ui.theme.UchihaTheme
 import kotlinx.coroutines.delay
@@ -186,34 +189,36 @@ fun PlayerScreen(
         activeUrl = resolved.streams.first().url
     }
 
-    // a chosen link is verified before and after hand-off so a dead chip never produces a black screen
+    // Avoid separate Range/content-type probes: valid hosts may reject them even when Media3 can play.
     LaunchedEffect(activeUrl) {
         val url = activeUrl ?: return@LaunchedEffect
-        val ok = SlayerApi.verifyStream(url)
-        if (!ok) {
-            val currentIndex = resolveState.streams.indexOfFirst { it.url == url }
-            if (resolveState.selected == -1 || resolveState.selected == currentIndex) {
-                val nextIndex = (currentIndex + 1).coerceAtMost(resolveState.streams.size - 1)
-                if (currentIndex >= 0 && nextIndex != currentIndex) {
-                    activeUrl = resolveState.streams[nextIndex].url
-                    resolveState = resolveState.copy(selected = nextIndex)
-                    return@LaunchedEffect
-                }
-                playbackError = "الروابط المتوفرة لا تعمل حالياً، جرّب جودة أخرى أو أعد المحاولة لاحقاً."
-            } else {
-                playbackError = "الجودة المختارة غير متاحة الآن، اختر جودة أخرى أو أعد المحاولة."
-                resolveState = resolveState.copy(selected = -1)
-            }
-            activeUrl = null
-            return@LaunchedEffect
-        }
         val savedPosition = PlaybackProgress.get(context, animeId, episodeNumber)
         val currentPosition = player.currentPosition.takeIf { it > 5_000L } ?: savedPosition
-        player.setMediaItem(MediaItem.fromUri(url))
+        val requestHeaders = if (url.contains("ab-hunter", ignoreCase = true)) {
+            mapOf("Referer" to "https://anslayer.com/")
+        } else {
+            emptyMap()
+        }
+        val dataSourceFactory = DefaultHttpDataSource.Factory()
+            .setUserAgent("Mozilla/5.0 (Linux; Android 15; Mobile) AppleWebKit/537.36 Chrome/131.0.0.0 Mobile Safari/537.36")
+            .setConnectTimeoutMs(15_000)
+            .setReadTimeoutMs(30_000)
+            .setAllowCrossProtocolRedirects(true)
+            .setDefaultRequestProperties(requestHeaders)
+        val lowerUrl = url.lowercase()
+        val itemBuilder = MediaItem.Builder().setUri(url)
+        when {
+            ".m3u8" in lowerUrl -> itemBuilder.setMimeType(MimeTypes.APPLICATION_M3U8)
+            ".mpd" in lowerUrl -> itemBuilder.setMimeType(MimeTypes.APPLICATION_MPD)
+        }
+        val mediaSource = DefaultMediaSourceFactory(context)
+            .setDataSourceFactory(dataSourceFactory)
+            .createMediaSource(itemBuilder.build())
+        playbackError = null
+        player.setMediaSource(mediaSource)
         player.prepare()
         if (currentPosition > 0L) player.seekTo(currentPosition)
         player.playWhenReady = true
-        playbackError = null
     }
 
     // Persist a checkpoint locally while watching and when playback reaches the end.
@@ -266,14 +271,22 @@ fun PlayerScreen(
             }
 
             override fun onPlayerError(error: PlaybackException) {
+                val currentIndex = resolveState.streams.indexOfFirst { it.url == activeUrl }
+                val nextIndex = if (currentIndex >= 0) currentIndex + 1 else resolveState.selected + 1
+                if (nextIndex in resolveState.streams.indices) {
+                    resolveState = resolveState.copy(selected = nextIndex)
+                    activeUrl = resolveState.streams[nextIndex].url
+                    playbackError = null
+                    return
+                }
                 playbackError = when (error.errorCode) {
                     PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
                     PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ->
                         "انقطع الاتصال أثناء التشغيل. تحقق من الإنترنت ثم أعد المحاولة."
                     PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED,
                     PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED ->
-                        "صيغة الفيديو من هذا الخادم غير مدعومة. جرّب خادماً أو جودة أخرى."
-                    else -> "تعذّر تشغيل هذا الرابط. جرّب خادماً آخر أو اضغط إعادة المحاولة."
+                        "صيغة الفيديو أو قائمة التشغيل غير مدعومة من هذا الخادم."
+                    else -> "تعذّر تشغيل الروابط المتاحة. جرّب إعادة المحاولة بعد التأكد من اتصال الإنترنت."
                 }
             }
         }
