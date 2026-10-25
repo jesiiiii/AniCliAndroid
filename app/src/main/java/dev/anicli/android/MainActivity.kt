@@ -346,7 +346,7 @@ fun HomeScreen(
                             vm.latest.chunked(2).forEach { pair ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                     pair.forEach { ep ->
-                                        PosterTile(title = ep.animeTitle, titleEnglish = ep.animeTitle, badge = "الحلقة ${ep.episodeNumber}", rating = ep.rating ?: "—", modifier = Modifier.weight(1f), blurRadius = scrollBlur, posterUrl = ep.posterUrl, sharedTransitionScope = sharedTransitionScope, animatedVisibilityScope = animatedVisibilityScope, sharedElementKey = "anime-poster:${ep.animeId}") {
+                                        PosterTile(title = ep.animeTitle, titleEnglish = ep.animeTitle, badge = "الحلقة ${ep.episodeNumber}", rating = ep.rating ?: "—", modifier = Modifier.weight(1f), blurRadius = scrollBlur, posterUrl = ep.posterUrl, sharedTransitionScope = sharedTransitionScope, animatedVisibilityScope = animatedVisibilityScope, sharedElementKey = "anime-poster:latest:${ep.animeId}") { onOpenAnime(Anime(id = ep.animeId, title = ep.animeTitle, posterUrl = ep.posterUrl, rating = ep.rating), "anime-poster:latest:${ep.animeId}")
                                             onOpenAnime(Anime(id = ep.animeId, title = ep.animeTitle, posterUrl = ep.posterUrl, rating = ep.rating))
                                         }
                                     }
@@ -362,7 +362,7 @@ fun HomeScreen(
                         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             vm.trending.chunked(2).forEach { pair ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    pair.forEach { anime -> PosterTile(anime.title, anime.titleEn, anime.animeType, anime.rating ?: "—", Modifier.weight(1f), blurRadius = scrollBlur, posterUrl = anime.posterUrl, sharedTransitionScope = sharedTransitionScope, animatedVisibilityScope = animatedVisibilityScope, sharedElementKey = "anime-poster:${anime.id}") { onOpenAnime(anime) } }
+                                    pair.forEach { anime -> PosterTile(anime.title, anime.titleEn, anime.animeType, anime.rating ?: "—", Modifier.weight(1f), blurRadius = scrollBlur, posterUrl = anime.posterUrl, sharedTransitionScope = sharedTransitionScope, animatedVisibilityScope = animatedVisibilityScope, sharedElementKey = "anime-poster:trending:${anime.id}") { onOpenAnime(anime, "anime-poster:trending:${anime.id}") } }
                                     if (pair.size == 1) Spacer(Modifier.weight(1f))
                                 }
                             }
@@ -375,7 +375,7 @@ fun HomeScreen(
                         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             vm.topRated.chunked(2).forEach { pair ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    pair.forEach { anime -> PosterTile(anime.title, anime.titleEn, anime.animeType, anime.rating, Modifier.weight(1f), blurRadius = scrollBlur, posterUrl = anime.posterUrl, sharedTransitionScope = sharedTransitionScope, animatedVisibilityScope = animatedVisibilityScope, sharedElementKey = "anime-poster:${anime.id}") { onOpenAnime(anime) } }
+                                    pair.forEach { anime -> PosterTile(anime.title, anime.titleEn, anime.animeType, anime.rating, Modifier.weight(1f), blurRadius = scrollBlur, posterUrl = anime.posterUrl, sharedTransitionScope = sharedTransitionScope, animatedVisibilityScope = animatedVisibilityScope, sharedElementKey = "anime-poster:top-rated:${anime.id}") { onOpenAnime(anime, "anime-poster:top-rated:${anime.id}") } }
                                     if (pair.size == 1) Spacer(Modifier.weight(1f))
                                 }
                             }
@@ -730,8 +730,8 @@ fun SearchScreen(
                             anime = anime,
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope,
-                            sharedElementKey = "anime-poster:${anime.id}",
-                            onClick = { onOpenAnime(anime) }
+                            sharedElementKey = "anime-poster:search:${anime.id}",
+                            onClick = { onOpenAnime(anime, "anime-poster:search:${anime.id}") }
                         )
                     }
                 }
