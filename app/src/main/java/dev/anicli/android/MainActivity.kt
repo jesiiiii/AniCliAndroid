@@ -216,8 +216,12 @@ fun UchihaApp() {
     var selectedAnimeId by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedAnimeTitle by rememberSaveable { mutableStateOf("") }
     var selectedAnimeSharedKey by rememberSaveable { mutableStateOf("") }
+    val closeDetailsWithoutSharedExit = {
+        selectedAnimeSharedKey = ""
+        selectedAnimeId = null
+    }
     BackHandler(enabled = selectedAnimeId != null || screen == "search") {
-        if (selectedAnimeId != null) selectedAnimeId = null else screen = "home"
+        if (selectedAnimeId != null) closeDetailsWithoutSharedExit() else screen = "home"
     }
     val destination = when {
         selectedAnimeId != null -> "details:${selectedAnimeId}"
@@ -248,7 +252,7 @@ fun UchihaApp() {
                             PlayerActivity.intent(context, animeId, selectedAnimeTitle, number)
                         )
                     },
-                    onBack = { selectedAnimeId = null }
+                    onBack = { closeDetailsWithoutSharedExit() }
                 )
             }
             target == "search" -> SearchScreen(
@@ -313,13 +317,25 @@ fun HomeScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                                Text("Uchiha", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Black)
-                                Text("Anime", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                UchihaClanCrest(Modifier.size(width = 34.dp, height = 40.dp))
+                                Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                                    Text("Uchiha", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Black)
+                                    Text("Anime", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                }
                             }
                             MangekyoSharingan(Modifier.size(58.dp))
                         }
-                        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surfaceContainerLowest).clickable { onOpenSearch() }.padding(horizontal = 18.dp, vertical = 16.dp)) {
+                        Box(
+                            Modifier.fillMaxWidth()
+                                .clip(RoundedCornerShape(22.dp))
+                                .background(Color(0xFFF0EEEE))
+                                .clickable { onOpenSearch() }
+                                .padding(horizontal = 18.dp, vertical = 16.dp)
+                        ) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Icon(Icons.Rounded.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                 Text("ابحث عن عالمك القادم...", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
@@ -334,7 +350,10 @@ fun HomeScreen(
                         val dayIndex = java.time.LocalDate.now().toEpochDay().mod(vm.trending.size.toLong()).toInt()
                         val featured = vm.trending[dayIndex]
                         Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(258.dp).clip(RoundedCornerShape(28.dp)).clickable { onOpenAnime(featured, "anime-poster:featured:${featured.id}") }) {
-                            SlayerPosterImage(posterUrl = featured.posterUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().sharedPosterElement(sharedTransitionScope, animatedVisibilityScope, "anime-poster:featured:${featured.id}"))
+                            SlayerPosterImage(posterUrl = featured.posterUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().sharedPosterElement(
+                                sharedTransitionScope, animatedVisibilityScope,
+                                "anime-poster:featured:${featured.id}", RoundedCornerShape(28.dp)
+                            ))
                             Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color(0xE5101734)))))
                             Column(Modifier.align(Alignment.BottomStart).padding(20.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                                 Text("اختيار المحرّر", color = Color(0xFFFF9C86), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
@@ -480,7 +499,9 @@ private fun SectionHeading(eyebrow: String, title: String, tag: String) {
 private fun PosterTile(title: String, titleEnglish: String = title, badge: String?, rating: String, modifier: Modifier = Modifier, blurRadius: androidx.compose.ui.unit.Dp = 0.dp, posterUrl: String? = null, sharedTransitionScope: SharedTransitionScope? = null, animatedVisibilityScope: AnimatedVisibilityScope? = null, sharedElementKey: String? = null, onClick: () -> Unit) {
     Column(modifier.fillMaxWidth().springClickable(onClick = onClick), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Box(Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
-            SlayerPosterImage(posterUrl = posterUrl, contentDescription = "غلاف $title", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().blur(blurRadius).sharedPosterElement(sharedTransitionScope, animatedVisibilityScope, sharedElementKey))
+            SlayerPosterImage(posterUrl = posterUrl, contentDescription = "غلاف $title", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().blur(blurRadius).sharedPosterElement(
+                sharedTransitionScope, animatedVisibilityScope, sharedElementKey, RoundedCornerShape(20.dp)
+            ))
             Box(Modifier.fillMaxWidth().height(104.dp).align(Alignment.BottomCenter).background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color(0xCC000000)))))
             if (!badge.isNullOrBlank()) {
                 Text(badge, modifier = Modifier.align(Alignment.TopStart).padding(8.dp).clip(RoundedCornerShape(9.dp)).background(Color(0xFFF04444).copy(alpha = 0.94f)).padding(horizontal = 8.dp, vertical = 5.dp), color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, maxLines = 1)
@@ -501,27 +522,89 @@ private fun MangekyoSharingan(modifier: Modifier = Modifier) {
     val angle = remember { Animatable(0f) }
     LaunchedEffect(Unit) {
         while (true) {
-            angle.animateTo(360f, animationSpec = tween(durationMillis = 900))
+            angle.animateTo(360f, animationSpec = tween(durationMillis = 1500))
             angle.snapTo(0f)
-            delay(2000)
+            delay(1100)
         }
     }
     Canvas(modifier = modifier) {
         val cx = size.width / 2f
         val cy = size.height / 2f
         val radius = size.minDimension * 0.47f
-        drawCircle(Color(0xFFB80F24), radius = radius, center = Offset(cx, cy))
+        drawCircle(Color(0xFFB90016), radius = radius, center = Offset(cx, cy))
+        drawCircle(
+            Color(0xFF09090B),
+            radius = radius,
+            center = Offset(cx, cy),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = radius * 0.075f)
+        )
         rotate(angle.value, pivot = Offset(cx, cy)) {
-            drawCircle(Color(0xFF17131A), radius = radius * 0.78f, center = Offset(cx, cy), style = androidx.compose.ui.graphics.drawscope.Stroke(width = radius * 0.055f))
-            drawCircle(Color(0xFF17131A), radius = radius * 0.20f, center = Offset(cx, cy))
             repeat(3) { index ->
                 rotate(index * 120f, pivot = Offset(cx, cy)) {
-                    drawCircle(Color(0xFF17131A), radius = radius * 0.14f, center = Offset(cx, cy - radius * 0.53f))
-                    drawCircle(Color(0xFF17131A), radius = radius * 0.105f, center = Offset(cx + radius * 0.18f, cy - radius * 0.37f))
+                    val blade = androidx.compose.ui.graphics.Path().apply {
+                        moveTo(cx - radius * 0.10f, cy - radius * 0.08f)
+                        cubicTo(
+                            cx - radius * 0.42f, cy - radius * 0.34f,
+                            cx - radius * 0.32f, cy - radius * 0.82f,
+                            cx + radius * 0.02f, cy - radius * 0.93f
+                        )
+                        cubicTo(
+                            cx + radius * 0.10f, cy - radius * 0.60f,
+                            cx + radius * 0.39f, cy - radius * 0.47f,
+                            cx + radius * 0.56f, cy - radius * 0.22f
+                        )
+                        cubicTo(
+                            cx + radius * 0.29f, cy - radius * 0.34f,
+                            cx + radius * 0.12f, cy - radius * 0.13f,
+                            cx - radius * 0.10f, cy - radius * 0.08f
+                        )
+                        close()
+                    }
+                    drawPath(blade, Color(0xFF08080A))
                 }
             }
         }
-        drawCircle(Color(0xFFFAF8F4), radius = radius * 0.07f, center = Offset(cx, cy))
+        drawCircle(Color(0xFF08080A), radius = radius * 0.105f, center = Offset(cx, cy))
+        drawCircle(Color(0xFFB90016), radius = radius * 0.052f, center = Offset(cx, cy))
+    }
+}
+
+@Composable
+private fun UchihaClanCrest(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        val cx = size.width / 2f
+        val top = size.height * 0.06f
+        val fanBottom = size.height * 0.78f
+        val left = size.width * 0.10f
+        val right = size.width * 0.90f
+        val centerX = cx
+        val handleTop = size.height * 0.70f
+        val handleBottom = size.height * 0.98f
+        val fan = androidx.compose.ui.graphics.Path().apply {
+            moveTo(left, fanBottom)
+            quadraticTo(size.width * 0.02f, size.height * 0.42f, size.width * 0.20f, top + size.height * 0.08f)
+            quadraticTo(centerX, top - size.height * 0.05f, size.width * 0.80f, top + size.height * 0.08f)
+            quadraticTo(size.width * 0.98f, size.height * 0.42f, right, fanBottom)
+            quadraticTo(centerX, size.height * 0.91f, left, fanBottom)
+            close()
+        }
+        drawPath(fan, Color(0xFF151318))
+        val upper = androidx.compose.ui.graphics.Path().apply {
+            moveTo(left + size.width * 0.04f, fanBottom * 0.94f)
+            quadraticTo(cx, size.height * 0.38f, right - size.width * 0.04f, fanBottom * 0.94f)
+            lineTo(cx, size.height * 0.57f)
+            close()
+        }
+        drawPath(upper, Color(0xFFCC1728))
+        val lower = androidx.compose.ui.graphics.Path().apply {
+            moveTo(left + size.width * 0.04f, fanBottom * 0.94f)
+            lineTo(cx, size.height * 0.57f)
+            lineTo(right - size.width * 0.04f, fanBottom * 0.94f)
+            quadraticTo(cx, size.height * 0.83f, left + size.width * 0.04f, fanBottom * 0.94f)
+            close()
+        }
+        drawPath(lower, Color(0xFFF7F3F2))
+        drawLine(Color(0xFF151318), Offset(cx, handleTop), Offset(cx, handleBottom), strokeWidth = size.width * 0.09f)
     }
 }
 
@@ -564,7 +647,7 @@ fun AnimeCard(
                     contentDescription = "غلاف ${anime.title}",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize().sharedPosterElement(
-                        sharedTransitionScope, animatedVisibilityScope, sharedElementKey
+                        sharedTransitionScope, animatedVisibilityScope, sharedElementKey, RoundedCornerShape(16.dp)
                     )
                 )
                 Box(
@@ -808,7 +891,7 @@ fun DetailsScreen(
                                             contentDescription = "بوستر ${info.anime.title}",
                                             contentScale = ContentScale.Crop,
                                             modifier = Modifier.fillMaxSize().sharedPosterElement(
-                                                sharedTransitionScope, animatedVisibilityScope, sharedElementKey
+                                                sharedTransitionScope, animatedVisibilityScope, sharedElementKey, RoundedCornerShape(16.dp)
                                             )
                                         )
                                     }
@@ -1034,15 +1117,17 @@ private fun Modifier.springClickable(
 private fun Modifier.sharedPosterElement(
     sharedTransitionScope: SharedTransitionScope?,
     animatedVisibilityScope: AnimatedVisibilityScope?,
-    key: String?
+    key: String?,
+    clipShape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(16.dp)
 ): Modifier {
     if (sharedTransitionScope == null || animatedVisibilityScope == null || key.isNullOrBlank()) {
-        return this
+        return this.clip(clipShape)
     }
     return with(sharedTransitionScope) {
         this@sharedPosterElement.sharedElement(
             rememberSharedContentState(key = key),
-            animatedVisibilityScope = animatedVisibilityScope
-        )
+            animatedVisibilityScope = animatedVisibilityScope,
+            clipInOverlayDuringTransition = OverlayClip(clipShape)
+        ).clip(clipShape)
     }
 }
