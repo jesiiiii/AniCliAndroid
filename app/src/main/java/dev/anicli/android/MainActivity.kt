@@ -685,7 +685,8 @@ fun SearchScreen(
     onOpenAnime: (Anime, String) -> Unit
 ) {
     val vm: SearchViewModel = viewModel()
-    var query by rememberSaveable { mutableStateOf("") }
+    // The ViewModel survives when search is hidden; keep the field and its results in sync.
+    var query by rememberSaveable { mutableStateOf(vm.query.value) }
     Scaffold(
         modifier = Modifier.background(MaterialTheme.colorScheme.background),
         
