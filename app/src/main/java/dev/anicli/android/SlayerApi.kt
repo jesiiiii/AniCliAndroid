@@ -259,13 +259,22 @@ object SlayerApi {
      * This is best-effort: the original Slayer poster remains the fallback.
      */
     suspend fun getHighResolutionPoster(anime: Anime): String? = withContext(Dispatchers.IO) {
+        fun normalizeTitle(value: String): String = value.lowercase()
+            .replace(Regex("[^\\p{L}\\p{N}]"), "")
+
+        val knownTitles = listOf(anime.title, anime.titleEn)
+            .map { normalizeTitle(it.trim()) }
+            .filter { it.length >= 3 }
+            .toSet()
+        if (knownTitles.isEmpty()) return@withContext null
+
         val queries = listOf(anime.titleEn, anime.title)
             .map { it.trim() }
             .filter { it.isNotBlank() }
             .distinct()
         for (query in queries) {
             try {
-                val url = "https://kitsu.io/api/edge/anime?filter[text]=${encode(query)}&page[limit]=5"
+                val url = "https://kitsu.io/api/edge/anime?filter[text]=${encode(query)}&page[limit]=10"
                 val body = httpGet(
                     url,
                     headers = mapOf(
@@ -277,6 +286,23 @@ object SlayerApi {
                 val items = JSONObject(body).optJSONArray("data") ?: continue
                 for (i in 0 until items.length()) {
                     val attributes = items.optJSONObject(i)?.optJSONObject("attributes") ?: continue
+                    val titles = attributes.optJSONObject("titles")
+                    val candidateTitles = listOf(
+                        attributes.optString("canonicalTitle", ""),
+                        titles?.optString("en", "").orEmpty(),
+                        titles?.optString("en_jp", "").orEmpty(),
+                        titles?.optString("ja_jp", "").orEmpty()
+                    ).map { normalizeTitle(it) }.filter { it.isNotBlank() }
+
+                    // Never replace the poster with an unrelated result from a fuzzy search.
+                    val matches = candidateTitles.any { candidate ->
+                        candidate in knownTitles || knownTitles.any { known ->
+                            candidate.length >= 5 && known.length >= 5 &&
+                                (candidate.contains(known) || known.contains(candidate))
+                        }
+                    }
+                    if (!matches) continue
+
                     val poster = attributes.optJSONObject("posterImage") ?: continue
                     val candidate = poster.optString("original", "").ifBlank {
                         poster.optString("large", "")
@@ -284,7 +310,7 @@ object SlayerApi {
                     if (candidate.startsWith("https://")) return@withContext candidate
                 }
             } catch (_: Exception) {
-                // Image lookup is optional; never block the details screen if Kitsu is unavailable.
+                // Optional lookup must never block the details screen.
             }
         }
         null
