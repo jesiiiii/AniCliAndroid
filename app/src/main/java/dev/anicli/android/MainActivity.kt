@@ -52,6 +52,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.MenuBook
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -278,6 +280,7 @@ fun HomeScreen(
     onOpenAnime: (Anime, String) -> Unit
 ) {
     var searchActive by rememberSaveable { mutableStateOf(false) }
+    var selectedTab by rememberSaveable { mutableStateOf("home") }
     BackHandler(enabled = searchActive) { searchActive = false }
     val vm: HomeViewModel = viewModel()
     val homeListState = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -285,7 +288,7 @@ fun HomeScreen(
     LaunchedEffect(Unit) {
         if (vm.latest.isEmpty() && vm.trending.isEmpty() && vm.topRated.isEmpty()) vm.load()
     }
-    Scaffold(containerColor = MaterialTheme.colorScheme.background, bottomBar = { CapsuleNavigationBar(selected = "home", onHome = {}, onSearch = { searchActive = true }) }) { innerPadding ->
+    Scaffold(containerColor = MaterialTheme.colorScheme.background, bottomBar = { CapsuleNavigationBar(selected = selectedTab, onHome = { selectedTab = "home"; searchActive = false }, onManga = { selectedTab = "manga"; searchActive = false }, onSettings = { selectedTab = "settings"; searchActive = false }) }) { innerPadding ->
         if (searchActive) {
             SearchScreen(
                 onBack = { searchActive = false },
@@ -294,6 +297,8 @@ fun HomeScreen(
                 onOpenAnime = onOpenAnime
             )
         } else when {
+            selectedTab == "manga" -> Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) { CenterState("المانجا", "قسم المانجا جاهز للربط بمصدر مانجا مستقل.") }
+            selectedTab == "settings" -> Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) { CenterState("الإعدادات", "ستظهر إعدادات التطبيق هنا.") }
             vm.loading && vm.latest.isEmpty() -> Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
@@ -438,44 +443,50 @@ private fun SlayerPosterImage(posterUrl: String?, contentDescription: String?, c
 }
 
 @Composable
-private fun CapsuleNavigationBar(selected: String, onHome: () -> Unit, onSearch: () -> Unit) {
+private fun CapsuleNavigationBar(
+    selected: String,
+    onHome: () -> Unit,
+    onManga: () -> Unit,
+    onSettings: () -> Unit
+) {
     val capsule = RoundedCornerShape(50)
-    val homePillColor by animateColorAsState(
-        targetValue = if (selected == "home") MaterialTheme.colorScheme.surface else Color.Transparent,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-        label = "home-pill-selection"
-    )
-    val searchPillColor by animateColorAsState(
-        targetValue = if (selected == "search") MaterialTheme.colorScheme.surface else Color.Transparent,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-        label = "search-pill-selection"
-    )
-    Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 6.dp, bottom = 22.dp).shadow(12.dp, capsule).clip(capsule).background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        val homeColor by animateColorAsState(
-            targetValue = if (selected == "home") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            animationSpec = tween(150),
-            label = "home-icon-tint"
+    Row(
+        Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 6.dp, bottom = 22.dp)
+            .shadow(12.dp, capsule).clip(capsule)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        data class NavItem(val id: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector, val action: () -> Unit)
+        val items = listOf(
+            NavItem("home", "الرئيسية", Icons.Rounded.Home, onHome),
+            NavItem("manga", "المانجا", Icons.Rounded.MenuBook, onManga),
+            NavItem("settings", "الإعدادات", Icons.Rounded.Settings, onSettings)
         )
-        val searchColor by animateColorAsState(
-            targetValue = if (selected == "search") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            animationSpec = tween(150),
-            label = "search-icon-tint"
-        )
-        Row(Modifier.weight(1f).clip(capsule).background(homePillColor).springClickable(onClick = onHome).padding(vertical = 11.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.Home, contentDescription = "الرئيسية", tint = homeColor, modifier = Modifier.size(21.dp))
-            AnimatedVisibility(visible = selected == "home", enter = fadeIn(tween(130)) + expandHorizontally(), exit = fadeOut(tween(90)) + shrinkHorizontally()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Spacer(Modifier.width(7.dp))
-                    Text("الرئيسية", color = homeColor, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-        Row(Modifier.weight(1f).clip(capsule).background(searchPillColor).springClickable(onClick = onSearch).padding(vertical = 11.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.Search, contentDescription = "بحث", tint = searchColor, modifier = Modifier.size(21.dp))
-            AnimatedVisibility(visible = selected == "search", enter = fadeIn(tween(130)) + expandHorizontally(), exit = fadeOut(tween(90)) + shrinkHorizontally()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Spacer(Modifier.width(7.dp))
-                    Text("بحث", color = searchColor, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+        items.forEach { item ->
+            val selectedColor by animateColorAsState(
+                targetValue = if (selected == item.id) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                animationSpec = tween(150),
+                label = "${item.id}-icon-tint"
+            )
+            val pillColor by animateColorAsState(
+                targetValue = if (selected == item.id) MaterialTheme.colorScheme.surface else Color.Transparent,
+                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                label = "${item.id}-pill-selection"
+            )
+            Row(
+                Modifier.weight(1f).clip(capsule).background(pillColor)
+                    .springClickable(onClick = item.action)
+                    .padding(vertical = 11.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(item.icon, contentDescription = item.label, tint = selectedColor, modifier = Modifier.size(21.dp))
+                AnimatedVisibility(visible = selected == item.id, enter = fadeIn(tween(130)) + expandHorizontally(), exit = fadeOut(tween(90)) + shrinkHorizontally()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Spacer(Modifier.width(6.dp))
+                        Text(item.label, color = selectedColor, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+                    }
                 }
             }
         }
@@ -1057,14 +1068,6 @@ private fun Modifier.sharedPosterElement(
     key: String?,
     clipShape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(16.dp)
 ): Modifier {
-    if (sharedTransitionScope == null || animatedVisibilityScope == null || key.isNullOrBlank()) {
-        return this.clip(clipShape)
-    }
-    return with(sharedTransitionScope) {
-        this@sharedPosterElement.sharedElement(
-            rememberSharedContentState(key = key),
-            animatedVisibilityScope = animatedVisibilityScope,
-            clipInOverlayDuringTransition = OverlayClip(clipShape)
-        ).clip(clipShape)
-    }
+    // Keep posters static when opening details; no shared-element poster morph.
+    return this.clip(clipShape)
 }
