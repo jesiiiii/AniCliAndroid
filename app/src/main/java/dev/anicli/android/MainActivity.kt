@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -213,141 +214,134 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
     LaunchedEffect(Unit) {
         if (vm.latest.isEmpty() && vm.trending.isEmpty() && vm.topRated.isEmpty()) vm.load()
     }
-    Scaffold(
-        modifier = Modifier.background(MaterialTheme.colorScheme.background)
-    ) { innerPadding ->
-        Box(Modifier.padding(innerPadding)) {
-            when {
-                vm.loading && vm.latest.isEmpty() -> {
-                    Column(
-                        Modifier.fillMaxSize(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.padding(top = 180.dp),
-                            color = MaterialTheme.colorScheme.primary
-                        )
+    Scaffold(containerColor = MaterialTheme.colorScheme.background) { innerPadding ->
+        when {
+            vm.loading && vm.latest.isEmpty() -> Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    Text("نجهّز لك عالم الأنمي", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            vm.error != null && vm.latest.isEmpty() -> Box(Modifier.padding(innerPadding)) {
+                ErrorState("تعذّر تحميل الصفحة", vm.error.orEmpty()) { vm.load() }
+            }
+            else -> LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(innerPadding),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
+                contentPadding = PaddingValues(bottom = 32.dp)
+            ) {
+                item {
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp).padding(top = 18.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text("UCHIHA", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.Black)
+                                Text("Anime", style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.ExtraBold)
+                            }
+                            IconButton(onClick = onOpenSearch, modifier = Modifier.size(50.dp).clip(RoundedCornerShape(17.dp)).background(MaterialTheme.colorScheme.primary)) {
+                                Icon(Icons.Rounded.Search, contentDescription = "بحث عن أنمي", tint = MaterialTheme.colorScheme.onPrimary)
+                            }
+                        }
+                        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(MaterialTheme.colorScheme.primary).clickable { onOpenSearch() }.padding(horizontal = 18.dp, vertical = 17.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Icon(Icons.Rounded.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
+                                Text("ابحث عن عالمك القادم...", color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.bodyLarge)
+                                Spacer(Modifier.weight(1f))
+                                Text("⌕", color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.headlineMedium)
+                            }
+                        }
                     }
                 }
-                vm.error != null && vm.latest.isEmpty() -> {
-                    ErrorState(
-                        title = "مشكلة في التحميل",
-                        message = vm.error.orEmpty(),
-                        onRetry = { vm.load() }
-                    )
+                if (vm.trending.isNotEmpty()) {
+                    item {
+                        val featured = vm.trending.first()
+                        Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(238.dp).clip(RoundedCornerShape(28.dp)).clickable { onOpenAnime(featured) }) {
+                            AsyncImage(model = featured.posterUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                            Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color(0xE5101734)))))
+                            Column(Modifier.align(Alignment.BottomStart).padding(20.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                                Text("اختيار المحرّر", color = Color(0xFFFF9C86), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                                Text(featured.title, color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text("★  ${featured.rating}", color = Color(0xFFFFD6A5), style = MaterialTheme.typography.labelLarge)
+                                    Text("اكتشف التفاصيل  ↗", color = Color.White, style = MaterialTheme.typography.labelMedium)
+                                }
+                            }
+                        }
+                    }
                 }
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
-                        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 24.dp)
-                    ) {
-                        item {
-                            Row(
-                                Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    Modifier
-                                        .size(44.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primaryContainer),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        "U",
-                                        style = MaterialTheme.typography.titleLarge,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                }
-                                Spacer(Modifier.size(12.dp))
-                                Text(
-                                    "Uchiha Anime",
-                                    style = MaterialTheme.typography.displaySmall,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Spacer(Modifier.weight(1f))
-                                IconButton(onClick = onOpenSearch) {
-                                    Icon(
-                                        Icons.Rounded.Search,
-                                        contentDescription = "بحث",
-                                        tint = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                            }
-                        }
-                        item {
-                            OutlinedTextField(
-                                value = "",
-                                onValueChange = {},
-                                readOnly = true,
-                                enabled = false,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onOpenSearch() },
-                                singleLine = true,
-                                placeholder = {
-                                    Text("ابحث عن أنمي (عربي أو إنجليزي)...", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                },
-                                shape = RoundedCornerShape(24.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
-                                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
-                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                                )
-                            )
-                        }
-                        if (vm.latest.isNotEmpty()) {
-                            item {
-                                Text(
-                                    "أحدث الحلقات",
-                                    style = MaterialTheme.typography.displaySmall,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
+                if (vm.latest.isNotEmpty()) {
+                    item { SectionHeading("وصل حديثاً", "أحدث الحلقات", "جديد") }
+                    item {
+                        LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             items(vm.latest, key = { "l${it.animeId}-${it.episodeNumber}" }) { ep ->
-                                LatestEpisodeCard(ep) {
-                                    onOpenAnime(Anime(id = ep.animeId, title = ep.animeTitle))
+                                PosterTile(title = ep.animeTitle, posterUrl = ep.posterUrl, badge = "الحلقة ${ep.episodeNumber}", rating = ep.rating) {
+                                    onOpenAnime(Anime(id = ep.animeId, title = ep.animeTitle, posterUrl = ep.posterUrl, rating = ep.rating))
                                 }
                             }
                         }
-                        if (vm.trending.isNotEmpty()) {
-                            item {
-                                Text(
-                                    "الأكثر مشاهدة",
-                                    style = MaterialTheme.typography.displaySmall,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
+                    }
+                }
+                if (vm.trending.isNotEmpty()) {
+                    item { SectionHeading("على الرادار", "الأكثر مشاهدة", "ترند") }
+                    item {
+                        LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             items(vm.trending, key = { "t${it.id}" }) { anime ->
-                                AnimeCard(anime = anime, onClick = { onOpenAnime(anime) })
+                                PosterTile(anime.title, anime.posterUrl, anime.animeType, anime.rating) { onOpenAnime(anime) }
                             }
                         }
-                        if (vm.topRated.isNotEmpty()) {
-                            item {
-                                Text(
-                                    "الأعلى تقييماً",
-                                    style = MaterialTheme.typography.displaySmall,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
+                    }
+                }
+                if (vm.topRated.isNotEmpty()) {
+                    item { SectionHeading("مختارة بعناية", "الأعلى تقييماً", "TOP") }
+                    item {
+                        LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             items(vm.topRated, key = { "r${it.id}" }) { anime ->
-                                AnimeCard(anime = anime, onClick = { onOpenAnime(anime) })
+                                PosterTile(anime.title, anime.posterUrl, anime.animeType, anime.rating) { onOpenAnime(anime) }
                             }
                         }
-                        item {
-                            Text(
-                                "المصدر: Anime Slayer موبايل • كل الروابط حقيقية من المصدر",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 6.dp, start = 4.dp)
-                            )
+                    }
+                }
+                item {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp).clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surfaceContainer).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.tertiaryContainer), contentAlignment = Alignment.Center) {
+                            Text("U", color = MaterialTheme.colorScheme.onTertiaryContainer, fontWeight = FontWeight.Black)
+                        }
+                        Spacer(Modifier.size(12.dp))
+                        Column {
+                            Text("Uchiha Anime", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                            Text("قصص تستحق أن تُعاش", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SectionHeading(eyebrow: String, title: String, tag: String) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp), verticalAlignment = Alignment.Bottom) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(eyebrow, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.Bold)
+            Text(title, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.ExtraBold)
+        }
+        Text(tag, modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.secondaryContainer).padding(horizontal = 10.dp, vertical = 6.dp), color = MaterialTheme.colorScheme.onSecondaryContainer, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun PosterTile(title: String, posterUrl: String, badge: String?, rating: String, onClick: () -> Unit) {
+    Column(Modifier.widthIn(min = 142.dp, max = 154.dp).clickable(onClick = onClick), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box(Modifier.fillMaxWidth().height(202.dp).clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
+            AsyncImage(model = posterUrl, contentDescription = "غلاف $title", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            Box(Modifier.fillMaxWidth().height(72.dp).align(Alignment.BottomCenter).background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color(0xD9000000)))))
+            if (!badge.isNullOrBlank()) {
+                Text(badge, modifier = Modifier.align(Alignment.TopStart).padding(8.dp).clip(RoundedCornerShape(9.dp)).background(Color(0xFFF47E68)).padding(horizontal = 8.dp, vertical = 5.dp), color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, maxLines = 1)
+            }
+            if (rating.isNotBlank() && rating != "—") {
+                Text("★ $rating", modifier = Modifier.align(Alignment.BottomStart).padding(10.dp), color = Color.White, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+            }
+        }
+        Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }
 
