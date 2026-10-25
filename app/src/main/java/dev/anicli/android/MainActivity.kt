@@ -31,6 +31,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -227,7 +228,7 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
     LaunchedEffect(Unit) {
         if (vm.latest.isEmpty() && vm.trending.isEmpty() && vm.topRated.isEmpty()) vm.load()
     }
-    Scaffold(containerColor = MaterialTheme.colorScheme.background) { innerPadding ->
+    Scaffold(containerColor = MaterialTheme.colorScheme.background, bottomBar = { CapsuleNavigationBar(selected = "home", onHome = {}, onSearch = onOpenSearch) }) { innerPadding ->
         when {
             vm.loading && vm.latest.isEmpty() -> Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -353,6 +354,21 @@ private fun SlayerPosterImage(posterUrl: String?, contentDescription: String?, c
             AsyncImage(model = posterUrl, contentDescription = contentDescription, contentScale = contentScale, modifier = Modifier.fillMaxSize())
         } else {
             Icon(Icons.Rounded.Star, contentDescription = contentDescription, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f), modifier = Modifier.size(28.dp))
+        }
+    }
+}
+
+@Composable
+private fun CapsuleNavigationBar(selected: String, onHome: () -> Unit, onSearch: () -> Unit) {
+    val capsule = RoundedCornerShape(50)
+    Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background).padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 10.dp).clip(capsule).background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(Modifier.weight(1f).clip(capsule).background(if (selected == "home") MaterialTheme.colorScheme.surface else Color.Transparent).clickable(onClick = onHome).padding(vertical = 11.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.Home, contentDescription = "الرئيسية", tint = if (selected == "home") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(21.dp))
+            if (selected == "home") { Spacer(Modifier.width(7.dp)); Text("الرئيسية", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold) }
+        }
+        Row(Modifier.weight(1f).clip(capsule).background(if (selected == "search") MaterialTheme.colorScheme.surface else Color.Transparent).clickable(onClick = onSearch).padding(vertical = 11.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.Search, contentDescription = "بحث", tint = if (selected == "search") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(21.dp))
+            if (selected == "search") { Spacer(Modifier.width(7.dp)); Text("بحث", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold) }
         }
     }
 }
@@ -550,7 +566,8 @@ fun SearchScreen(onBack: () -> Unit, onOpenAnime: (Anime) -> Unit) {
     val vm: SearchViewModel = viewModel()
     var query by rememberSaveable { mutableStateOf("") }
     Scaffold(
-        modifier = Modifier.background(MaterialTheme.colorScheme.background)
+        modifier = Modifier.background(MaterialTheme.colorScheme.background),
+        bottomBar = { CapsuleNavigationBar(selected = "search", onHome = onBack, onSearch = {}) }
     ) { innerPadding ->
         Column(
             Modifier
