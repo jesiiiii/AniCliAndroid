@@ -74,6 +74,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.key
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.blur
@@ -99,6 +100,8 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -110,10 +113,15 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import dev.anicli.android.onboarding.OnboardingPrefs
 import dev.anicli.android.onboarding.OnboardingScreen
+import dev.anicli.android.ui.glass.GlassBottomNavigation
+import dev.anicli.android.ui.settings.SettingsScreen
 import dev.anicli.android.ui.theme.UchihaTheme
 import dev.anicli.android.util.Dimens.CardCornerRadius
 import dev.anicli.android.util.Dimens.CardPosterSize
 import dev.anicli.android.util.Dimens.PillCornerRadius
+import dev.anicli.android.util.UchihaSettings
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -216,8 +224,12 @@ class SearchViewModel : ViewModel() {
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        UchihaSettings.bootstrap(this)
         setContent {
-            UchihaTheme {
+            // collectAsState on the settings flow keeps the theme in lockstep with the
+            // settings screen writes and every other reader of the same store.
+            val oledDark by UchihaSettings.oledStateFlow.collectAsState()
+            UchihaTheme(oledDark = oledDark) {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                     val context = LocalContext.current
                     var onboarded by remember {
@@ -304,10 +316,25 @@ fun HomeScreen(
     BackHandler(enabled = searchActive) { searchActive = false }
     val vm: HomeViewModel = viewModel()
     val homeListState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val hazeState = remember { HazeState() }
     LaunchedEffect(Unit) {
         if (vm.latest.isEmpty() && vm.trending.isEmpty() && vm.topRated.isEmpty()) vm.load()
     }
-    Scaffold(containerColor = MaterialTheme.colorScheme.background, bottomBar = { CapsuleNavigationBar(selected = selectedTab, onHome = { selectedTab = "home"; searchActive = false }, onManga = { selectedTab = "manga"; searchActive = false }, onSettings = { selectedTab = "settings"; searchActive = false }) }) { innerPadding ->
+    Scaffold(containerColor = MaterialTheme.colorScheme.background, bottomBar = {
+        GlassBottomNavigation(
+            hazeState = hazeState,
+            selected = selectedTab,
+            onHome = { selectedTab = "home"; searchActive = false },
+            onManga = { selectedTab = "manga"; searchActive = false },
+            onSettings = { selectedTab = "settings"; searchActive = false }
+        )
+    }) { innerPadding ->
+        Box(
+            Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .hazeSource(state = hazeState)
+        ) {
         if (searchActive) {
             SearchScreen(
                 onBack = { searchActive = false },
@@ -317,7 +344,7 @@ fun HomeScreen(
             )
         } else when {
             selectedTab == "manga" -> Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) { CenterState("المانجا", "قسم المانجا جاهز للربط بمصدر مانجا مستقل.") }
-            selectedTab == "settings" -> Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) { CenterState("الإعدادات", "ستظهر إعدادات التطبيق هنا.") }
+            selectedTab == "settings" -> SettingsScreen()
             vm.loading && vm.latest.isEmpty() -> Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
@@ -472,6 +499,7 @@ fun HomeScreen(
                 }
             }
         }
+        }
     }
 }
 
@@ -483,57 +511,6 @@ private fun SlayerPosterImage(posterUrl: String?, contentDescription: String?, c
             AsyncImage(model = posterUrl, contentDescription = contentDescription, contentScale = contentScale, modifier = Modifier.fillMaxSize())
         } else {
             Icon(Icons.Rounded.Star, contentDescription = contentDescription, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f), modifier = Modifier.size(28.dp))
-        }
-    }
-}
-
-@Composable
-private fun CapsuleNavigationBar(
-    selected: String,
-    onHome: () -> Unit,
-    onManga: () -> Unit,
-    onSettings: () -> Unit
-) {
-    val capsule = RoundedCornerShape(50)
-    Row(
-        Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 6.dp, bottom = 22.dp)
-            .shadow(12.dp, capsule).clip(capsule)
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(5.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        data class NavItem(val id: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector, val action: () -> Unit)
-        val items = listOf(
-            NavItem("home", "الرئيسية", Icons.Rounded.Home, onHome),
-            NavItem("manga", "المانجا", Icons.Rounded.MenuBook, onManga),
-            NavItem("settings", "الإعدادات", Icons.Rounded.Settings, onSettings)
-        )
-        items.forEach { item ->
-            val selectedColor by animateColorAsState(
-                targetValue = if (selected == item.id) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                animationSpec = tween(150),
-                label = "${item.id}-icon-tint"
-            )
-            val pillColor by animateColorAsState(
-                targetValue = if (selected == item.id) MaterialTheme.colorScheme.surface else Color.Transparent,
-                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                label = "${item.id}-pill-selection"
-            )
-            Row(
-                Modifier.weight(1f).clip(capsule).background(pillColor)
-                    .springClickable(onClick = item.action)
-                    .padding(vertical = 11.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(item.icon, contentDescription = item.label, tint = selectedColor, modifier = Modifier.size(21.dp))
-                AnimatedVisibility(visible = selected == item.id, enter = fadeIn(tween(130)) + expandHorizontally(), exit = fadeOut(tween(90)) + shrinkHorizontally()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Spacer(Modifier.width(6.dp))
-                        Text(item.label, color = selectedColor, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, maxLines = 1)
-                    }
-                }
-            }
         }
     }
 }

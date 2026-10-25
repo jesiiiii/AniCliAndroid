@@ -78,6 +78,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import dev.anicli.android.ui.theme.UchihaTheme
+import dev.anicli.android.util.UchihaSettings
 import kotlinx.coroutines.delay
 import java.util.Locale
 
@@ -188,6 +189,7 @@ fun PlayerScreen(
             .filter { it.url.isNotBlank() }
             .distinctBy { it.url }
             .sortedByDescending { it.rank() }
+            .let { UchihaSettings.orderedByPreference(it, UchihaSettings.preferredQuality(context)) }
         if (streams.isEmpty()) {
             resolveState = ResolveState(
                 resolving = false,
@@ -261,7 +263,7 @@ fun PlayerScreen(
         }
         val playbackListener = object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
-                val autoNextEnabled = context.getSharedPreferences("uchiha_settings", 0).getBoolean("auto_next", true)
+                val autoNextEnabled = UchihaSettings.autoNextEpisode(context)
                 if (playbackState == Player.STATE_ENDED && autoNextEnabled && !autoAdvanced) {
                     val next = nextEpisodeNumber
                     if (!next.isNullOrBlank()) {

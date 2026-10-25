@@ -160,17 +160,37 @@ private val darkScheme = darkColorScheme(
     surfaceContainerHighest = surfaceContainerHighestDark
 )
 
+/** True OLED scheme: primary backgrounds are real #000000, groups sit on #151515 cards. */
+private val oledScheme = darkScheme.copy(
+    background = Color(0xFF000000),
+    onBackground = Color(0xFFF0EFFB),
+    surface = Color(0xFF000000),
+    surfaceDim = Color(0xFF000000),
+    surfaceBright = Color(0xFF151515),
+    surfaceVariant = Color(0xFF151515),
+    onSurfaceVariant = Color(0xFFB8B4C8),
+    outline = Color(0xFF9D9AB9),
+    outlineVariant = Color(0xFF232323),
+    surfaceContainerLowest = Color(0xFF0A0A0A),
+    surfaceContainerLow = Color(0xFF151515),
+    surfaceContainer = Color(0xFF151515),
+    surfaceContainerHigh = Color(0xFF1B1B1B),
+    surfaceContainerHighest = Color(0xFF202020)
+)
+
 @Composable
 fun UchihaTheme(
     darkTheme: Boolean = false,
+    oledDark: Boolean = false,
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            if (darkTheme || oledDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
+        oledDark -> oledScheme
         darkTheme -> darkScheme
         else -> lightScheme
     }

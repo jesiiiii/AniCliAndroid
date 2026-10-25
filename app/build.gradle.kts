@@ -63,6 +63,10 @@ dependencies {
     implementation("io.coil-kt:coil-svg:2.7.0")
     // Third-party motion: Airbnb Lottie for externally maintained animation playback
     implementation("com.airbnb.android:lottie-compose:6.7.1")
+    // Haze 1.4.0 (stable): real Haze backdrop blur, matched to BOM 2025.03.00 (Compose ui 1.7.8)
+    // and Kotlin 2.1.20 stdlib. Haze 2.x GlassStyle needs jetbrains-compose 1.12 + Kotlin 2.4
+    // toolchain upgrades, so the 1.x hazeSource/hazeEffect architecture is used here.
+    implementation("dev.chrisbanes.haze:haze:1.4.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.1")
