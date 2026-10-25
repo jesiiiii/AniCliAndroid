@@ -272,7 +272,7 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                         val dayIndex = java.time.LocalDate.now().toEpochDay().mod(vm.trending.size.toLong()).toInt()
                         val featured = vm.trending[dayIndex]
                         Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(258.dp).clip(RoundedCornerShape(28.dp)).clickable { onOpenAnime(featured) }) {
-                            JikanPosterImage(title = featured.title, titleEnglish = featured.titleEn, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                            SlayerPosterImage(posterUrl = featured.posterUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                             Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color(0xE5101734)))))
                             Column(Modifier.align(Alignment.BottomStart).padding(20.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                                 Text("اختيار المحرّر", color = Color(0xFFFF9C86), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
@@ -292,7 +292,7 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                             vm.latest.chunked(2).forEach { pair ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                     pair.forEach { ep ->
-                                        PosterTile(title = ep.animeTitle, titleEnglish = ep.animeTitle, badge = "الحلقة ${ep.episodeNumber}", rating = ep.rating ?: "—", modifier = Modifier.weight(1f), blurRadius = scrollBlur) {
+                                        PosterTile(title = ep.animeTitle, titleEnglish = ep.animeTitle, badge = "الحلقة ${ep.episodeNumber}", rating = ep.rating ?: "—", modifier = Modifier.weight(1f), blurRadius = scrollBlur, posterUrl = ep.posterUrl) {
                                             onOpenAnime(Anime(id = ep.animeId, title = ep.animeTitle, posterUrl = ep.posterUrl, rating = ep.rating))
                                         }
                                     }
@@ -308,7 +308,7 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             vm.trending.chunked(2).forEach { pair ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    pair.forEach { anime -> PosterTile(anime.title, anime.titleEn, anime.animeType, anime.rating ?: "—", Modifier.weight(1f), blurRadius = scrollBlur) { onOpenAnime(anime) } }
+                                    pair.forEach { anime -> PosterTile(anime.title, anime.titleEn, anime.animeType, anime.rating ?: "—", Modifier.weight(1f), blurRadius = scrollBlur, posterUrl = anime.posterUrl) { onOpenAnime(anime) } }
                                     if (pair.size == 1) Spacer(Modifier.weight(1f))
                                 }
                             }
@@ -321,7 +321,7 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             vm.topRated.chunked(2).forEach { pair ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    pair.forEach { anime -> PosterTile(anime.title, anime.titleEn, anime.animeType, anime.rating, Modifier.weight(1f), blurRadius = scrollBlur) { onOpenAnime(anime) } }
+                                    pair.forEach { anime -> PosterTile(anime.title, anime.titleEn, anime.animeType, anime.rating, Modifier.weight(1f), blurRadius = scrollBlur, posterUrl = anime.posterUrl) { onOpenAnime(anime) } }
                                     if (pair.size == 1) Spacer(Modifier.weight(1f))
                                 }
                             }
@@ -345,33 +345,14 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
     }
 }
 
-/** All poster rendering is Jikan-only; Anime Slayer image URLs are never used. */
+/** Poster images come directly from the Slayer API response. */
 @Composable
-private fun JikanPosterImage(
-    title: String,
-    titleEnglish: String = title,
-    contentDescription: String?,
-    contentScale: ContentScale,
-    modifier: Modifier = Modifier
-) {
-    var posterUrl by remember(title, titleEnglish) { mutableStateOf<String?>(null) }
-    LaunchedEffect(title, titleEnglish) {
-        posterUrl = SlayerApi.getJikanPoster(title, titleEnglish)
-    }
+private fun SlayerPosterImage(posterUrl: String?, contentDescription: String?, contentScale: ContentScale, modifier: Modifier = Modifier) {
     Box(modifier.background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
-        if (posterUrl != null) {
-            AsyncImage(
-                model = posterUrl,
-                contentDescription = contentDescription,
-                contentScale = contentScale,
-                modifier = Modifier.fillMaxSize()
-            )
+        if (!posterUrl.isNullOrBlank()) {
+            AsyncImage(model = posterUrl, contentDescription = contentDescription, contentScale = contentScale, modifier = Modifier.fillMaxSize())
         } else {
-            CircularProgressIndicator(
-                modifier = Modifier.size(22.dp),
-                strokeWidth = 2.dp,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Icon(Icons.Rounded.Star, contentDescription = contentDescription, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f), modifier = Modifier.size(28.dp))
         }
     }
 }
@@ -388,10 +369,10 @@ private fun SectionHeading(eyebrow: String, title: String, tag: String) {
 }
 
 @Composable
-private fun PosterTile(title: String, titleEnglish: String = title, badge: String?, rating: String, modifier: Modifier = Modifier, blurRadius: androidx.compose.ui.unit.Dp = 0.dp, onClick: () -> Unit) {
+private fun PosterTile(title: String, titleEnglish: String = title, badge: String?, rating: String, modifier: Modifier = Modifier, blurRadius: androidx.compose.ui.unit.Dp = 0.dp, posterUrl: String? = null, onClick: () -> Unit) {
     Column(modifier.fillMaxWidth().clickable(onClick = onClick), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Box(Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
-            JikanPosterImage(title = title, titleEnglish = titleEnglish, contentDescription = "غلاف $title", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().blur(blurRadius))
+            SlayerPosterImage(posterUrl = posterUrl, contentDescription = "غلاف $title", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().blur(blurRadius))
             Box(Modifier.fillMaxWidth().height(104.dp).align(Alignment.BottomCenter).background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color(0xCC000000)))))
             if (!badge.isNullOrBlank()) {
                 Text(badge, modifier = Modifier.align(Alignment.TopStart).padding(8.dp).clip(RoundedCornerShape(9.dp)).background(Color(0xFFF04444).copy(alpha = 0.94f)).padding(horizontal = 8.dp, vertical = 5.dp), color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, maxLines = 1)
@@ -467,9 +448,8 @@ fun AnimeCard(
                     .clip(RoundedCornerShape(16.dp))
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             ) {
-                JikanPosterImage(
-                    title = anime.title,
-                    titleEnglish = anime.titleEn,
+                SlayerPosterImage(
+                    posterUrl = anime.posterUrl,
                     contentDescription = "غلاف ${anime.title}",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
@@ -682,76 +662,28 @@ fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: ()
                         contentPadding = PaddingValues(bottom = 32.dp)
                     ) {
                         item {
-                            Box(
-                                Modifier.fillMaxWidth().height(410.dp)
-                                    .clip(RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp))
-                                    .background(Color(0xFFF1EEEE))
-                            ) {
-                                JikanPosterImage(
-                                    title = info.anime.title,
-                                    titleEnglish = info.anime.titleEn,
-                                    contentDescription = "بوستر ${info.anime.title}",
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                                Box(
-                                    Modifier.fillMaxWidth().height(155.dp).align(Alignment.BottomCenter)
-                                        .background(androidx.compose.ui.graphics.Brush.verticalGradient(
-                                            listOf(Color.Transparent, Color(0xD9000000), Color(0xF5000000))
-                                        ))
-                                )
-                                // A taller, softly blurred duplicate blends into the hero image instead of forming a hard horizontal seam.
-                                JikanPosterImage(
-                                    title = info.anime.title,
-                                    titleEnglish = info.anime.titleEn,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxWidth().height(178.dp).align(Alignment.BottomCenter)
-                                        .blur(30.dp)
-                                )
-                                Box(
-                                    Modifier.fillMaxWidth().height(145.dp).align(Alignment.BottomCenter)
-                                        .background(androidx.compose.ui.graphics.Brush.verticalGradient(
-                                            listOf(Color.Transparent, Color(0xA8000000), Color(0xF0000000))
-                                        ))
-                                )
-                                IconButton(
-                                    onClick = onBack,
-                                    modifier = Modifier.padding(14.dp).align(Alignment.TopStart)
-                                        .background(Color.Black.copy(alpha = 0.38f), CircleShape)
-                                ) {
+                            Box(Modifier.fillMaxWidth().height(410.dp).clip(RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp)).background(Color(0xFFF1EEEE))) {
+                                SlayerPosterImage(posterUrl = info.anime.posterUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().blur(34.dp))
+                                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.20f)))
+                                IconButton(onClick = onBack, modifier = Modifier.padding(14.dp).align(Alignment.TopStart).background(Color.Black.copy(alpha = 0.42f), CircleShape)) {
                                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "رجوع", tint = Color.White)
                                 }
-                                Column(
-                                    Modifier.align(Alignment.BottomCenter).padding(bottom = 22.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Text(
-                                        info.anime.title,
-                                        style = MaterialTheme.typography.headlineMedium,
-                                        textAlign = TextAlign.Center,
-                                        color = Color.White,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.padding(horizontal = 24.dp)
-                                    )
-                                    if (info.anime.titleEn.isNotBlank() && info.anime.titleEn != info.anime.title) {
-                                        Text(info.anime.titleEn, style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.8f))
+                                Row(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(start = 22.dp, end = 22.dp, bottom = 26.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                                    Box(Modifier.width(112.dp).height(158.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
+                                        SlayerPosterImage(posterUrl = info.anime.posterUrl, contentDescription = "بوستر ${info.anime.title}", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                                     }
-                                    Spacer(Modifier.height(14.dp))
-                                    Button(
-                                        onClick = { info.episodes.firstOrNull()?.let { onSelectEpisode(it.number) } },
-                                        enabled = info.episodes.isNotEmpty(),
-                                        shape = RoundedCornerShape(50),
-                                        contentPadding = PaddingValues(horizontal = 30.dp, vertical = 12.dp),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.primary,
-                                            contentColor = Color.White,
-                                            disabledContainerColor = Color.DarkGray
-                                        )
-                                    ) {
-                                        Text("▶  ابدأ المشاهدة", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                    Column(Modifier.weight(1f).padding(bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text(info.anime.title, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Start, color = Color.White, fontWeight = FontWeight.ExtraBold, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                                        if (info.anime.titleEn.isNotBlank() && info.anime.titleEn != info.anime.title) {
+                                            Text(info.anime.titleEn, style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.82f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        }
+                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                            Icon(Icons.Rounded.Star, contentDescription = "التقييم", tint = Color(0xFFFFD166), modifier = Modifier.size(18.dp))
+                                            Text(info.anime.rating.ifBlank { "—" }, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                        }
+                                        Button(onClick = { info.episodes.firstOrNull()?.let { onSelectEpisode(it.number) } }, enabled = info.episodes.isNotEmpty(), shape = RoundedCornerShape(50), contentPadding = PaddingValues(horizontal = 22.dp, vertical = 10.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = Color.White, disabledContainerColor = Color.DarkGray)) {
+                                            Text("▶  ابدأ المشاهدة", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                        }
                                     }
                                 }
                             }
