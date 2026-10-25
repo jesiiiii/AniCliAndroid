@@ -321,7 +321,7 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             vm.topRated.chunked(2).forEach { pair ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    pair.forEach { anime -> PosterTile(anime.title, anime.posterUrl, anime.animeType, anime.rating, Modifier.weight(1f)) { onOpenAnime(anime) } }
+                                    pair.forEach { anime -> PosterTile(anime.title, anime.posterUrl, anime.animeType, anime.rating, Modifier.weight(1f), blurRadius = scrollBlur) { onOpenAnime(anime) } }
                                     if (pair.size == 1) Spacer(Modifier.weight(1f))
                                 }
                             }
