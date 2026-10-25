@@ -219,7 +219,9 @@ fun UchihaApp() {
         else -> "home"
     }
 
-    AnimatedContent(
+    SharedTransitionLayout {
+        val sharedScope = this
+        AnimatedContent(
         targetState = destination,
         transitionSpec = {
             (fadeIn(tween(190)) + slideInHorizontally(initialOffsetX = { it / 18 })) togetherWith
@@ -232,6 +234,9 @@ fun UchihaApp() {
                 val animeId = target.removePrefix("details:")
                 DetailsScreen(
                     animeId = animeId,
+                    sharedTransitionScope = sharedScope,
+                    animatedVisibilityScope = this,
+                    sharedElementKey = "anime-poster:$animeId",
                     onSelectEpisode = { number ->
                         context.startActivity(
                             PlayerActivity.intent(context, animeId, selectedAnimeTitle, number)
@@ -240,11 +245,17 @@ fun UchihaApp() {
                     onBack = { selectedAnimeId = null }
                 )
             }
-            target == "search" -> SearchScreen(onBack = { screen = "home" }) { anime ->
+            target == "search" -> SearchScreen(
+                onBack = { screen = "home" },
+                sharedTransitionScope = sharedScope,
+                animatedVisibilityScope = this
+            ) { anime ->
                 selectedAnimeId = anime.id
                 selectedAnimeTitle = anime.title
             }
             else -> HomeScreen(
+                sharedTransitionScope = sharedScope,
+                animatedVisibilityScope = this,
                 onOpenSearch = { screen = "search" },
                 onOpenAnime = { anime ->
                     selectedAnimeId = anime.id
@@ -252,12 +263,18 @@ fun UchihaApp() {
                 }
             )
         }
+        }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
-fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
+fun HomeScreen(
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    onOpenSearch: () -> Unit,
+    onOpenAnime: (Anime) -> Unit
+) {
     val vm: HomeViewModel = viewModel()
     val homeListState = androidx.compose.foundation.lazy.rememberLazyListState()
     val scrollBlur by animateDpAsState(if (homeListState.isScrollInProgress) 1.6.dp else 0.dp, label = "poster-scroll-blur")
@@ -329,7 +346,7 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                             vm.latest.chunked(2).forEach { pair ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                     pair.forEach { ep ->
-                                        PosterTile(title = ep.animeTitle, titleEnglish = ep.animeTitle, badge = "الحلقة ${ep.episodeNumber}", rating = ep.rating ?: "—", modifier = Modifier.weight(1f), blurRadius = scrollBlur, posterUrl = ep.posterUrl) {
+                                        PosterTile(title = ep.animeTitle, titleEnglish = ep.animeTitle, badge = "الحلقة ${ep.episodeNumber}", rating = ep.rating ?: "—", modifier = Modifier.weight(1f), blurRadius = scrollBlur, posterUrl = ep.posterUrl, sharedTransitionScope = sharedTransitionScope, animatedVisibilityScope = animatedVisibilityScope, sharedElementKey = "anime-poster:${ep.animeId}") {
                                             onOpenAnime(Anime(id = ep.animeId, title = ep.animeTitle, posterUrl = ep.posterUrl, rating = ep.rating))
                                         }
                                     }
@@ -345,7 +362,7 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             vm.trending.chunked(2).forEach { pair ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    pair.forEach { anime -> PosterTile(anime.title, anime.titleEn, anime.animeType, anime.rating ?: "—", Modifier.weight(1f), blurRadius = scrollBlur, posterUrl = anime.posterUrl) { onOpenAnime(anime) } }
+                                    pair.forEach { anime -> PosterTile(anime.title, anime.titleEn, anime.animeType, anime.rating ?: "—", Modifier.weight(1f), blurRadius = scrollBlur, posterUrl = anime.posterUrl, sharedTransitionScope = sharedTransitionScope, animatedVisibilityScope = animatedVisibilityScope, sharedElementKey = "anime-poster:${anime.id}") { onOpenAnime(anime) } }
                                     if (pair.size == 1) Spacer(Modifier.weight(1f))
                                 }
                             }
@@ -358,7 +375,7 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             vm.topRated.chunked(2).forEach { pair ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    pair.forEach { anime -> PosterTile(anime.title, anime.titleEn, anime.animeType, anime.rating, Modifier.weight(1f), blurRadius = scrollBlur, posterUrl = anime.posterUrl) { onOpenAnime(anime) } }
+                                    pair.forEach { anime -> PosterTile(anime.title, anime.titleEn, anime.animeType, anime.rating, Modifier.weight(1f), blurRadius = scrollBlur, posterUrl = anime.posterUrl, sharedTransitionScope = sharedTransitionScope, animatedVisibilityScope = animatedVisibilityScope, sharedElementKey = "anime-poster:${anime.id}") { onOpenAnime(anime) } }
                                     if (pair.size == 1) Spacer(Modifier.weight(1f))
                                 }
                             }
