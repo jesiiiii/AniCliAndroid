@@ -362,6 +362,17 @@ fun PlayerScreen(
                     message = playbackError.orEmpty(),
                     onRetry = { activeUrl = null; attempt += 1 }
                 )
+                if (resolveState.streams.isNotEmpty()) {
+                    QualityChipsRow(
+                        streams = resolveState.streams,
+                        selectedIndex = resolveState.selected,
+                        onSelect = { index ->
+                            resolveState = resolveState.copy(selected = index)
+                            playbackError = null
+                            activeUrl = resolveState.streams[index].url
+                        }
+                    )
+                }
             }
             resolveState.error != null -> {
                 PlayerErrorBlock(
