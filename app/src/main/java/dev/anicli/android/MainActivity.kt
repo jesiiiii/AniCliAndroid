@@ -648,9 +648,7 @@ fun LatestEpisodeCard(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-@OptIn(ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun SearchScreen(
     onBack: () -> Unit,
@@ -742,7 +740,6 @@ fun SearchScreen(
     }
 }
 
-@Composable
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun DetailsScreen(
