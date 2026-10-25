@@ -617,8 +617,9 @@ fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: ()
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var expanded by remember { mutableStateOf(false) }
+    var retryKey by remember { mutableStateOf(0) }
 
-    LaunchedEffect(animeId) {
+    LaunchedEffect(animeId, retryKey) {
         loading = true
         error = null
         try {
@@ -639,7 +640,7 @@ fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: ()
                 error != null -> ErrorState(
                     title = "تعذّر تحميل التفاصيل",
                     message = error.orEmpty(),
-                    onRetry = { loading = true; error = null }
+                    onRetry = { retryKey += 1; loading = true; error = null }
                 )
                 else -> {
                     val info = data ?: return@Box
