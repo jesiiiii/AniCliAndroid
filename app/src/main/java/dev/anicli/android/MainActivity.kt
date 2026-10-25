@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -26,6 +27,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -221,6 +223,8 @@ fun UchihaApp() {
 @Composable
 fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
     val vm: HomeViewModel = viewModel()
+    val homeListState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val scrollBlur by animateDpAsState(if (homeListState.isScrollInProgress) 1.6.dp else 0.dp, label = "poster-scroll-blur")
     LaunchedEffect(Unit) {
         if (vm.latest.isEmpty() && vm.trending.isEmpty() && vm.topRated.isEmpty()) vm.load()
     }
@@ -236,6 +240,7 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                 ErrorState("تعذّر تحميل الصفحة", vm.error.orEmpty()) { vm.load() }
             }
             else -> LazyColumn(
+                state = homeListState,
                 modifier = Modifier.fillMaxSize().padding(innerPadding),
                 verticalArrangement = Arrangement.spacedBy(24.dp),
                 contentPadding = PaddingValues(bottom = 32.dp)
@@ -287,7 +292,7 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                             vm.latest.chunked(2).forEach { pair ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                     pair.forEach { ep ->
-                                        PosterTile(title = ep.animeTitle, posterUrl = ep.posterUrl, badge = "الحلقة ${ep.episodeNumber}", rating = ep.rating, modifier = Modifier.weight(1f)) {
+                                        PosterTile(title = ep.animeTitle, posterUrl = ep.posterUrl, badge = "الحلقة ${ep.episodeNumber}", rating = ep.rating, modifier = Modifier.weight(1f), blurRadius = scrollBlur) {
                                             onOpenAnime(Anime(id = ep.animeId, title = ep.animeTitle, posterUrl = ep.posterUrl, rating = ep.rating))
                                         }
                                     }
@@ -303,7 +308,7 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             vm.trending.chunked(2).forEach { pair ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    pair.forEach { anime -> PosterTile(anime.title, anime.posterUrl, anime.animeType, anime.rating, Modifier.weight(1f)) { onOpenAnime(anime) } }
+                                    pair.forEach { anime -> PosterTile(anime.title, anime.posterUrl, anime.animeType, anime.rating, Modifier.weight(1f), blurRadius = scrollBlur) { onOpenAnime(anime) } }
                                     if (pair.size == 1) Spacer(Modifier.weight(1f))
                                 }
                             }
@@ -352,10 +357,10 @@ private fun SectionHeading(eyebrow: String, title: String, tag: String) {
 }
 
 @Composable
-private fun PosterTile(title: String, posterUrl: String, badge: String?, rating: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+private fun PosterTile(title: String, posterUrl: String, badge: String?, rating: String, modifier: Modifier = Modifier, blurRadius: androidx.compose.ui.unit.Dp = 0.dp, onClick: () -> Unit) {
     Column(modifier.fillMaxWidth().clickable(onClick = onClick), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Box(Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
-            AsyncImage(model = posterUrl, contentDescription = "غلاف $title", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().blur(0.35.dp))
+            AsyncImage(model = posterUrl, contentDescription = "غلاف $title", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().blur(blurRadius))
             Box(Modifier.fillMaxWidth().height(104.dp).align(Alignment.BottomCenter).background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color(0xCC000000)))))
             if (!badge.isNullOrBlank()) {
                 Text(badge, modifier = Modifier.align(Alignment.TopStart).padding(8.dp).clip(RoundedCornerShape(9.dp)).background(Color(0xFFF04444).copy(alpha = 0.94f)).padding(horizontal = 8.dp, vertical = 5.dp), color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, maxLines = 1)
