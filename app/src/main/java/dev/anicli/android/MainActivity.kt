@@ -272,7 +272,7 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                         val dayIndex = java.time.LocalDate.now().toEpochDay().mod(vm.trending.size.toLong()).toInt()
                         val featured = vm.trending[dayIndex]
                         Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(258.dp).clip(RoundedCornerShape(28.dp)).clickable { onOpenAnime(featured) }) {
-                            AsyncImage(model = featured.posterUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                            JikanPosterImage(title = featured.title, titleEnglish = featured.titleEn, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                             Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color(0xE5101734)))))
                             Column(Modifier.align(Alignment.BottomStart).padding(20.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                                 Text("اختيار المحرّر", color = Color(0xFFFF9C86), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
@@ -292,7 +292,7 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                             vm.latest.chunked(2).forEach { pair ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                     pair.forEach { ep ->
-                                        PosterTile(title = ep.animeTitle, posterUrl = ep.posterUrl, badge = "الحلقة ${ep.episodeNumber}", rating = ep.rating ?: "—", modifier = Modifier.weight(1f), blurRadius = scrollBlur) {
+                                        PosterTile(title = ep.animeTitle, titleEnglish = ep.animeTitle, badge = "الحلقة ${ep.episodeNumber}", rating = ep.rating ?: "—", modifier = Modifier.weight(1f), blurRadius = scrollBlur) {
                                             onOpenAnime(Anime(id = ep.animeId, title = ep.animeTitle, posterUrl = ep.posterUrl, rating = ep.rating))
                                         }
                                     }
@@ -308,7 +308,7 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             vm.trending.chunked(2).forEach { pair ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    pair.forEach { anime -> PosterTile(anime.title, anime.posterUrl, anime.animeType, anime.rating ?: "—", Modifier.weight(1f), blurRadius = scrollBlur) { onOpenAnime(anime) } }
+                                    pair.forEach { anime -> PosterTile(anime.title, anime.titleEn, anime.animeType, anime.rating ?: "—", Modifier.weight(1f), blurRadius = scrollBlur) { onOpenAnime(anime) } }
                                     if (pair.size == 1) Spacer(Modifier.weight(1f))
                                 }
                             }
@@ -321,7 +321,7 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             vm.topRated.chunked(2).forEach { pair ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    pair.forEach { anime -> PosterTile(anime.title, anime.posterUrl, anime.animeType, anime.rating, Modifier.weight(1f), blurRadius = scrollBlur) { onOpenAnime(anime) } }
+                                    pair.forEach { anime -> PosterTile(anime.title, anime.titleEn, anime.animeType, anime.rating, Modifier.weight(1f), blurRadius = scrollBlur) { onOpenAnime(anime) } }
                                     if (pair.size == 1) Spacer(Modifier.weight(1f))
                                 }
                             }
@@ -345,6 +345,37 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
     }
 }
 
+/** All poster rendering is Jikan-only; Anime Slayer image URLs are never used. */
+@Composable
+private fun JikanPosterImage(
+    title: String,
+    titleEnglish: String = title,
+    contentDescription: String?,
+    contentScale: ContentScale,
+    modifier: Modifier = Modifier
+) {
+    var posterUrl by remember(title, titleEnglish) { mutableStateOf<String?>(null) }
+    LaunchedEffect(title, titleEnglish) {
+        posterUrl = SlayerApi.getJikanPoster(title, titleEnglish)
+    }
+    Box(modifier.background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
+        if (posterUrl != null) {
+            AsyncImage(
+                model = posterUrl,
+                contentDescription = contentDescription,
+                contentScale = contentScale,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            CircularProgressIndicator(
+                modifier = Modifier.size(22.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
 @Composable
 private fun SectionHeading(eyebrow: String, title: String, tag: String) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp), verticalAlignment = Alignment.Bottom) {
@@ -357,10 +388,10 @@ private fun SectionHeading(eyebrow: String, title: String, tag: String) {
 }
 
 @Composable
-private fun PosterTile(title: String, posterUrl: String?, badge: String?, rating: String, modifier: Modifier = Modifier, blurRadius: androidx.compose.ui.unit.Dp = 0.dp, onClick: () -> Unit) {
+private fun PosterTile(title: String, titleEnglish: String = title, badge: String?, rating: String, modifier: Modifier = Modifier, blurRadius: androidx.compose.ui.unit.Dp = 0.dp, onClick: () -> Unit) {
     Column(modifier.fillMaxWidth().clickable(onClick = onClick), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Box(Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
-            AsyncImage(model = posterUrl, contentDescription = "غلاف $title", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().blur(blurRadius))
+            JikanPosterImage(title = title, titleEnglish = titleEnglish, contentDescription = "غلاف $title", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().blur(blurRadius))
             Box(Modifier.fillMaxWidth().height(104.dp).align(Alignment.BottomCenter).background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color(0xCC000000)))))
             if (!badge.isNullOrBlank()) {
                 Text(badge, modifier = Modifier.align(Alignment.TopStart).padding(8.dp).clip(RoundedCornerShape(9.dp)).background(Color(0xFFF04444).copy(alpha = 0.94f)).padding(horizontal = 8.dp, vertical = 5.dp), color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, maxLines = 1)
@@ -436,8 +467,9 @@ fun AnimeCard(
                     .clip(RoundedCornerShape(16.dp))
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             ) {
-                AsyncImage(
-                    model = anime.posterUrl,
+                JikanPosterImage(
+                    title = anime.title,
+                    titleEnglish = anime.titleEn,
                     contentDescription = "غلاف ${anime.title}",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
@@ -619,13 +651,6 @@ fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: ()
     var error by remember { mutableStateOf<String?>(null) }
     var expanded by remember { mutableStateOf(false) }
     var retryKey by remember { mutableStateOf(0) }
-    var highResolutionPoster by remember(animeId) { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(data?.anime?.id) {
-        val anime = data?.anime ?: return@LaunchedEffect
-        highResolutionPoster = SlayerApi.getHighResolutionPoster(anime)
-    }
-
     LaunchedEffect(animeId, retryKey) {
         loading = true
         error = null
@@ -663,7 +688,8 @@ fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: ()
                                     .background(Color(0xFFF1EEEE))
                             ) {
                                 AsyncImage(
-                                    model = highResolutionPoster ?: info.anime.posterUrl,
+                                    title = info.anime.title,
+                                    titleEnglish = info.anime.titleEn,
                                     contentDescription = "بوستر ${info.anime.title}",
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize()
@@ -676,7 +702,8 @@ fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: ()
                                 )
                                 // A taller, softly blurred duplicate blends into the hero image instead of forming a hard horizontal seam.
                                 AsyncImage(
-                                    model = highResolutionPoster ?: info.anime.posterUrl,
+                                    title = info.anime.title,
+                                    titleEnglish = info.anime.titleEn,
                                     contentDescription = null,
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxWidth().height(178.dp).align(Alignment.BottomCenter)
