@@ -254,6 +254,42 @@ object SlayerApi {
         apiGet("animes/get-published-animes", json).toString()
     }
 
+    /**
+     * Fetch a larger poster from Kitsu for the details hero only.
+     * This is best-effort: the original Slayer poster remains the fallback.
+     */
+    suspend fun getHighResolutionPoster(anime: Anime): String? = withContext(Dispatchers.IO) {
+        val queries = listOf(anime.titleEn, anime.title)
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+        for (query in queries) {
+            try {
+                val url = "https://kitsu.io/api/edge/anime?filter[text]=${encode(query)}&page[limit]=5"
+                val body = httpGet(
+                    url,
+                    headers = mapOf(
+                        "Accept" to "application/vnd.api+json",
+                        "User-Agent" to "UchihaAnime/1.0 (Android)"
+                    ),
+                    timeout = 12
+                )
+                val items = JSONObject(body).optJSONArray("data") ?: continue
+                for (i in 0 until items.length()) {
+                    val attributes = items.optJSONObject(i)?.optJSONObject("attributes") ?: continue
+                    val poster = attributes.optJSONObject("posterImage") ?: continue
+                    val candidate = poster.optString("original", "").ifBlank {
+                        poster.optString("large", "")
+                    }
+                    if (candidate.startsWith("https://")) return@withContext candidate
+                }
+            } catch (_: Exception) {
+                // Image lookup is optional; never block the details screen if Kitsu is unavailable.
+            }
+        }
+        null
+    }
+
     suspend fun getAnimeWithEpisodes(animeId: String, forceRefresh: Boolean = false): AnimeWithEpisodes {
         val key = animeId.trim()
         if (!forceRefresh) detailsCache[key]?.let { return it }
