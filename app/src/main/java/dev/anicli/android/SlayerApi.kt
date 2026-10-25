@@ -13,7 +13,6 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.net.URLEncoder
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
 import javax.crypto.Cipher
@@ -252,63 +251,6 @@ object SlayerApi {
     private suspend fun fetchListBody(payload: Map<String, Any>): String = withContext(Dispatchers.IO) {
         val json = JSONObject().apply { payload.forEach { (k, v) -> put(k, v) } }.toString()
         apiGet("animes/get-published-animes", json).toString()
-    }
-
-    /**
-     * Resolve posters exclusively through Jikan API v4.
-     * In-memory caching prevents repeated requests while scrolling.
-     */
-    private val jikanPosterCache = ConcurrentHashMap<String, String>()
-
-    suspend fun getJikanPoster(title: String, titleEnglish: String = ""): String? = withContext(Dispatchers.IO) {
-        fun normalizeTitle(value: String): String = value.lowercase()
-            .replace(Regex("[^\\p{L}\\p{N}]"), "")
-
-        val queries = listOf(titleEnglish, title)
-            .map { it.trim() }
-            .filter { it.length >= 2 }
-            .distinct()
-        if (queries.isEmpty()) return@withContext null
-        val cacheKey = queries.joinToString("|") { it.lowercase() }
-        jikanPosterCache[cacheKey]?.let { return@withContext it }
-        val knownTitles = queries.map(::normalizeTitle).filter { it.length >= 3 }.toSet()
-
-        for (query in queries) {
-            try {
-                val url = "https://api.jikan.moe/v4/anime?q=${encode(query)}&limit=10"
-                val body = httpGet(url, headers = mapOf("Accept" to "application/json", "User-Agent" to UA), timeout = 12)
-                val items = JSONObject(body).optJSONArray("data") ?: continue
-                for (i in 0 until items.length()) {
-                    val item = items.optJSONObject(i) ?: continue
-                    val candidateTitles = listOf(
-                        item.optString("title", ""),
-                        item.optString("title_english", ""),
-                        item.optString("title_japanese", "")
-                    ).map(::normalizeTitle).filter { it.isNotBlank() }
-                    val matches = candidateTitles.any { candidate ->
-                        candidate in knownTitles || knownTitles.any { known ->
-                            candidate.length >= 5 && known.length >= 5 &&
-                                (candidate.contains(known) || known.contains(candidate))
-                        }
-                    }
-                    if (!matches) continue
-                    val images = item.optJSONObject("images")
-                    val jpg = images?.optJSONObject("jpg")
-                    val webp = images?.optJSONObject("webp")
-                    val poster = listOf(
-                        jpg?.optString("large_image_url", "").orEmpty(),
-                        webp?.optString("large_image_url", "").orEmpty(),
-                        jpg?.optString("image_url", "").orEmpty(),
-                        webp?.optString("image_url", "").orEmpty()
-                    ).firstOrNull { it.startsWith("https://") } ?: continue
-                    jikanPosterCache[cacheKey] = poster
-                    return@withContext poster
-                }
-            } catch (_: Exception) {
-                // No other provider is used if Jikan fails.
-            }
-        }
-        null
     }
 
     suspend fun getAnimeWithEpisodes(animeId: String, forceRefresh: Boolean = false): AnimeWithEpisodes {
