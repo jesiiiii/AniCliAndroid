@@ -3,12 +3,8 @@ package dev.anicli.android
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -85,6 +81,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import java.io.IOException
 
 class HomeViewModel : ViewModel() {
@@ -248,18 +245,18 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
             ) {
                 item {
                     Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp).padding(top = 18.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            MangekyoSharingan(Modifier.size(54.dp))
-                            Spacer(Modifier.size(12.dp))
-                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                Text("UCHIHA", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.Black)
-                                Text("Anime", style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.ExtraBold)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                                Text("Uchiha", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Black)
+                                Text("Anime", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                             }
-                            IconButton(onClick = onOpenSearch, modifier = Modifier.size(50.dp).clip(RoundedCornerShape(17.dp)).background(MaterialTheme.colorScheme.primary)) {
-                                Icon(Icons.Rounded.Search, contentDescription = "بحث عن أنمي", tint = MaterialTheme.colorScheme.onPrimary)
-                            }
+                            MangekyoSharingan(Modifier.size(58.dp))
                         }
-                        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(MaterialTheme.colorScheme.primary).clickable { onOpenSearch() }.padding(horizontal = 18.dp, vertical = 17.dp)) {
+                        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surfaceContainerLowest).clickable { onOpenSearch() }.padding(horizontal = 18.dp, vertical = 16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Icon(Icons.Rounded.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
                                 Text("ابحث عن عالمك القادم...", color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.bodyLarge)
@@ -271,7 +268,8 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                 }
                 if (vm.trending.isNotEmpty()) {
                     item {
-                        val featured = vm.trending.first()
+                        val dayIndex = java.time.LocalDate.now().toEpochDay().mod(vm.trending.size.toLong()).toInt()
+                        val featured = vm.trending[dayIndex]
                         Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(238.dp).clip(RoundedCornerShape(28.dp)).clickable { onOpenAnime(featured) }) {
                             AsyncImage(model = featured.posterUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                             Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color(0xE5101734)))))
@@ -379,19 +377,20 @@ private fun PosterTile(title: String, posterUrl: String, badge: String?, rating:
 
 @Composable
 private fun MangekyoSharingan(modifier: Modifier = Modifier) {
-    val transition = rememberInfiniteTransition(label = "mangekyo-spin")
-    val angle by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(animation = tween(5200, easing = LinearEasing), repeatMode = RepeatMode.Restart),
-        label = "mangekyo-angle"
-    )
+    val angle = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            angle.animateTo(360f, animationSpec = tween(durationMillis = 900))
+            angle.snapTo(0f)
+            delay(2000)
+        }
+    }
     Canvas(modifier = modifier) {
         val cx = size.width / 2f
         val cy = size.height / 2f
         val radius = size.minDimension * 0.47f
         drawCircle(Color(0xFFB80F24), radius = radius, center = Offset(cx, cy))
-        rotate(angle, pivot = Offset(cx, cy)) {
+        rotate(angle.value, pivot = Offset(cx, cy)) {
             drawCircle(Color(0xFF17131A), radius = radius * 0.78f, center = Offset(cx, cy), style = androidx.compose.ui.graphics.drawscope.Stroke(width = radius * 0.055f))
             drawCircle(Color(0xFF17131A), radius = radius * 0.20f, center = Offset(cx, cy))
             repeat(3) { index ->
