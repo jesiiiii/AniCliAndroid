@@ -210,6 +210,7 @@ fun UchihaApp() {
     var screen by rememberSaveable { mutableStateOf("home") }
     var selectedAnimeId by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedAnimeTitle by rememberSaveable { mutableStateOf("") }
+    var selectedAnimeSharedKey by rememberSaveable { mutableStateOf("") }
     BackHandler(enabled = selectedAnimeId != null || screen == "search") {
         if (selectedAnimeId != null) selectedAnimeId = null else screen = "home"
     }
@@ -236,7 +237,7 @@ fun UchihaApp() {
                     animeId = animeId,
                     sharedTransitionScope = sharedScope,
                     animatedVisibilityScope = this,
-                    sharedElementKey = "anime-poster:$animeId",
+                    sharedElementKey = selectedAnimeSharedKey.ifBlank { "anime-poster:details:$animeId" },
                     onSelectEpisode = { number ->
                         context.startActivity(
                             PlayerActivity.intent(context, animeId, selectedAnimeTitle, number)
@@ -249,17 +250,19 @@ fun UchihaApp() {
                 onBack = { screen = "home" },
                 sharedTransitionScope = sharedScope,
                 animatedVisibilityScope = this
-            ) { anime ->
+            ) { anime, sharedKey ->
                 selectedAnimeId = anime.id
                 selectedAnimeTitle = anime.title
+                selectedAnimeSharedKey = sharedKey
             }
             else -> HomeScreen(
                 sharedTransitionScope = sharedScope,
                 animatedVisibilityScope = this,
                 onOpenSearch = { screen = "search" },
-                onOpenAnime = { anime ->
+                onOpenAnime = { anime, sharedKey ->
                     selectedAnimeId = anime.id
                     selectedAnimeTitle = anime.title
+                    selectedAnimeSharedKey = sharedKey
                 }
             )
         }
@@ -273,7 +276,7 @@ fun HomeScreen(
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
     onOpenSearch: () -> Unit,
-    onOpenAnime: (Anime) -> Unit
+    onOpenAnime: (Anime, String) -> Unit
 ) {
     val vm: HomeViewModel = viewModel()
     val homeListState = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -654,7 +657,7 @@ fun SearchScreen(
     onBack: () -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
-    onOpenAnime: (Anime) -> Unit
+    onOpenAnime: (Anime, String) -> Unit
 ) {
     val vm: SearchViewModel = viewModel()
     var query by rememberSaveable { mutableStateOf("") }
