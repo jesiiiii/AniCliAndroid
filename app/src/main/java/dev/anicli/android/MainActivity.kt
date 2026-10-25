@@ -2,6 +2,7 @@ package dev.anicli.android
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -209,6 +210,9 @@ fun UchihaApp() {
     var screen by rememberSaveable { mutableStateOf("home") }
     var selectedAnimeId by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedAnimeTitle by rememberSaveable { mutableStateOf("") }
+    BackHandler(enabled = selectedAnimeId != null || screen == "search") {
+        if (selectedAnimeId != null) selectedAnimeId = null else screen = "home"
+    }
     val destination = when {
         selectedAnimeId != null -> "details:${selectedAnimeId}"
         screen == "search" -> "search"
