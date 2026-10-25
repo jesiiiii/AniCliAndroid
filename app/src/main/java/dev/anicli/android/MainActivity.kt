@@ -105,7 +105,10 @@ import dev.anicli.android.util.Dimens.CardCornerRadius
 import dev.anicli.android.util.Dimens.CardPosterSize
 import dev.anicli.android.util.Dimens.PillCornerRadius
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
@@ -167,7 +170,7 @@ class SearchViewModel : ViewModel() {
     init {
         @OptIn(FlowPreview::class)
         viewModelScope.launch {
-            query.debounce(450).collect { text ->
+            query.debounce(350).distinctUntilChanged().collectLatest { text ->
                 val trimmed = text.trim()
                 if (trimmed.isBlank()) {
                     results = emptyList(); searched = false; error = null; loading = false
@@ -177,6 +180,8 @@ class SearchViewModel : ViewModel() {
                         results = SlayerApi.search(trimmed)
                         searched = true
                         loading = false
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         results = emptyList()
                         error = e.message ?: "تعذّر إكمال البحث."
@@ -522,7 +527,7 @@ private fun MangekyoSharingan(modifier: Modifier = Modifier) {
         }
     }
     AsyncImage(
-        model = "https://upload.wikimedia.org/wikipedia/commons/1/17/Mangekyou_Sharingan_Itachi.svg",
+        model = "https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Mangekyou_Sharingan_Itachi.svg/500px-Mangekyou_Sharingan_Itachi.svg.png",
         contentDescription = "مانغيكيو شارينغان إيتاتشي",
         contentScale = ContentScale.Fit,
         modifier = modifier.graphicsLayer { rotationZ = angle.value }
@@ -532,7 +537,7 @@ private fun MangekyoSharingan(modifier: Modifier = Modifier) {
 @Composable
 private fun UchihaClanCrest(modifier: Modifier = Modifier) {
     AsyncImage(
-        model = "https://upload.wikimedia.org/wikipedia/commons/3/3f/Symbole_Uchiwa.svg",
+        model = "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Symbole_Uchiwa.svg/500px-Symbole_Uchiwa.svg.png",
         contentDescription = "شعار عشيرة أوتشيها",
         contentScale = ContentScale.Fit,
         modifier = modifier
