@@ -3,12 +3,27 @@ package dev.anicli.android
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,11 +73,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalIndication
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -190,33 +209,46 @@ fun UchihaApp() {
     var screen by rememberSaveable { mutableStateOf("home") }
     var selectedAnimeId by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedAnimeTitle by rememberSaveable { mutableStateOf("") }
+    val destination = when {
+        selectedAnimeId != null -> "details:${selectedAnimeId}"
+        screen == "search" -> "search"
+        else -> "home"
+    }
 
-    if (selectedAnimeId != null) {
-        DetailsScreen(
-            animeId = selectedAnimeId!!,
-            onSelectEpisode = { number ->
-                context.startActivity(
-                    PlayerActivity.intent(context, selectedAnimeId!!, selectedAnimeTitle, number)
+    AnimatedContent(
+        targetState = destination,
+        transitionSpec = {
+            (fadeIn(tween(190)) + slideInHorizontally(initialOffsetX = { it / 18 })) togetherWith
+                (fadeOut(tween(130)) + slideOutHorizontally(targetOffsetX = { -it / 28 }))
+        },
+        label = "uchiha-screen-transition"
+    ) { target ->
+        when {
+            target.startsWith("details:") -> {
+                val animeId = target.removePrefix("details:")
+                DetailsScreen(
+                    animeId = animeId,
+                    onSelectEpisode = { number ->
+                        context.startActivity(
+                            PlayerActivity.intent(context, animeId, selectedAnimeTitle, number)
+                        )
+                    },
+                    onBack = { selectedAnimeId = null }
                 )
-            },
-            onBack = { selectedAnimeId = null }
-        )
-        return
-    }
-    if (screen == "search") {
-        SearchScreen(onBack = { screen = "home" }) { anime ->
-            selectedAnimeId = anime.id
-            selectedAnimeTitle = anime.title
+            }
+            target == "search" -> SearchScreen(onBack = { screen = "home" }) { anime ->
+                selectedAnimeId = anime.id
+                selectedAnimeTitle = anime.title
+            }
+            else -> HomeScreen(
+                onOpenSearch = { screen = "search" },
+                onOpenAnime = { anime ->
+                    selectedAnimeId = anime.id
+                    selectedAnimeTitle = anime.title
+                }
+            )
         }
-        return
     }
-    HomeScreen(
-        onOpenSearch = { screen = "search" },
-        onOpenAnime = { anime ->
-            selectedAnimeId = anime.id
-            selectedAnimeTitle = anime.title
-        }
-    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -361,14 +393,44 @@ private fun SlayerPosterImage(posterUrl: String?, contentDescription: String?, c
 @Composable
 private fun CapsuleNavigationBar(selected: String, onHome: () -> Unit, onSearch: () -> Unit) {
     val capsule = RoundedCornerShape(50)
+    val homeSelected by androidx.compose.animation.core.animateDpAsState(
+        targetValue = if (selected == "home") 1.dp else 0.dp,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "home-pill-selection"
+    )
+    val searchSelected by androidx.compose.animation.core.animateDpAsState(
+        targetValue = if (selected == "search") 1.dp else 0.dp,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "search-pill-selection"
+    )
     Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background).padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 10.dp).clip(capsule).background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(Modifier.weight(1f).clip(capsule).background(if (selected == "home") MaterialTheme.colorScheme.surface else Color.Transparent).clickable(onClick = onHome).padding(vertical = 11.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.Home, contentDescription = "الرئيسية", tint = if (selected == "home") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(21.dp))
-            if (selected == "home") { Spacer(Modifier.width(7.dp)); Text("الرئيسية", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold) }
+        val homeColor by animateColorAsState(
+            targetValue = if (selected == "home") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            animationSpec = tween(150),
+            label = "home-icon-tint"
+        )
+        val searchColor by animateColorAsState(
+            targetValue = if (selected == "search") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            animationSpec = tween(150),
+            label = "search-icon-tint"
+        )
+        Row(Modifier.weight(1f).clip(capsule).background(if (homeSelected > 0.dp) MaterialTheme.colorScheme.surface else Color.Transparent).springClickable(onClick = onHome).padding(vertical = 11.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.Home, contentDescription = "الرئيسية", tint = homeColor, modifier = Modifier.size(21.dp))
+            AnimatedVisibility(visible = selected == "home", enter = fadeIn(tween(130)) + expandHorizontally(), exit = fadeOut(tween(90)) + shrinkHorizontally()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Spacer(Modifier.width(7.dp))
+                    Text("الرئيسية", color = homeColor, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                }
+            }
         }
-        Row(Modifier.weight(1f).clip(capsule).background(if (selected == "search") MaterialTheme.colorScheme.surface else Color.Transparent).clickable(onClick = onSearch).padding(vertical = 11.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.Search, contentDescription = "بحث", tint = if (selected == "search") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(21.dp))
-            if (selected == "search") { Spacer(Modifier.width(7.dp)); Text("بحث", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold) }
+        Row(Modifier.weight(1f).clip(capsule).background(if (searchSelected > 0.dp) MaterialTheme.colorScheme.surface else Color.Transparent).springClickable(onClick = onSearch).padding(vertical = 11.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.Search, contentDescription = "بحث", tint = searchColor, modifier = Modifier.size(21.dp))
+            AnimatedVisibility(visible = selected == "search", enter = fadeIn(tween(130)) + expandHorizontally(), exit = fadeOut(tween(90)) + shrinkHorizontally()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Spacer(Modifier.width(7.dp))
+                    Text("بحث", color = searchColor, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                }
+            }
         }
     }
 }
@@ -386,7 +448,7 @@ private fun SectionHeading(eyebrow: String, title: String, tag: String) {
 
 @Composable
 private fun PosterTile(title: String, titleEnglish: String = title, badge: String?, rating: String, modifier: Modifier = Modifier, blurRadius: androidx.compose.ui.unit.Dp = 0.dp, posterUrl: String? = null, onClick: () -> Unit) {
-    Column(modifier.fillMaxWidth().clickable(onClick = onClick), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(modifier.fillMaxWidth().springClickable(onClick = onClick), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Box(Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
             SlayerPosterImage(posterUrl = posterUrl, contentDescription = "غلاف $title", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().blur(blurRadius))
             Box(Modifier.fillMaxWidth().height(104.dp).align(Alignment.BottomCenter).background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color(0xCC000000)))))
@@ -870,4 +932,38 @@ fun ErrorState(title: String, message: String, onRetry: () -> Unit) {
             Text("إعادة المحاولة")
         }
     }
+}
+
+/**
+ * Lightweight press feedback built on Compose interactions. It keeps click handling native,
+ * scales only while pressed, and emits one subtle haptic on activation rather than per frame.
+ */
+@Composable
+private fun Modifier.springClickable(
+    onClick: () -> Unit,
+    hapticOnClick: Boolean = true
+): Modifier {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.975f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "press-scale"
+    )
+    val haptics = LocalHapticFeedback.current
+    return this
+        .graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        }
+        .clickable(
+            interactionSource = interactionSource,
+            indication = LocalIndication.current
+        ) {
+            if (hapticOnClick) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            onClick()
+        }
 }
