@@ -506,7 +506,10 @@ fun AnimeCard(
     anime: Anime,
     badgeOverride: String? = null,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
+    sharedElementKey: String? = null
 ) {
     Card(
         onClick = onClick,
@@ -534,7 +537,9 @@ fun AnimeCard(
                     posterUrl = anime.posterUrl,
                     contentDescription = "غلاف ${anime.title}",
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize().sharedPosterElement(
+                        sharedTransitionScope, animatedVisibilityScope, sharedElementKey
+                    )
                 )
                 Box(
                     Modifier
@@ -628,7 +633,14 @@ fun LatestEpisodeCard(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SearchScreen(onBack: () -> Unit, onOpenAnime: (Anime) -> Unit) {
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+fun SearchScreen(
+    onBack: () -> Unit,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    onOpenAnime: (Anime) -> Unit
+) {
     val vm: SearchViewModel = viewModel()
     var query by rememberSaveable { mutableStateOf("") }
     Scaffold(
@@ -699,7 +711,13 @@ fun SearchScreen(onBack: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                         )
                     }
                     items(vm.results, key = { it.id + "s" }) { anime ->
-                        AnimeCard(anime = anime, onClick = { onOpenAnime(anime) })
+                        AnimeCard(
+                            anime = anime,
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            sharedElementKey = "anime-poster:${anime.id}",
+                            onClick = { onOpenAnime(anime) }
+                        )
                     }
                 }
             }
@@ -708,7 +726,16 @@ fun SearchScreen(onBack: () -> Unit, onOpenAnime: (Anime) -> Unit) {
 }
 
 @Composable
-fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: () -> Unit) {
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+fun DetailsScreen(
+    animeId: String,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    sharedElementKey: String,
+    onSelectEpisode: (String) -> Unit,
+    onBack: () -> Unit
+) {
     var data by remember { mutableStateOf<AnimeWithEpisodes?>(null) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -753,7 +780,14 @@ fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: ()
                                 }
                                 Row(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(start = 22.dp, end = 22.dp, bottom = 26.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                                     Box(Modifier.width(112.dp).height(158.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
-                                        SlayerPosterImage(posterUrl = info.anime.posterUrl, contentDescription = "بوستر ${info.anime.title}", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                                        SlayerPosterImage(
+                                            posterUrl = info.anime.posterUrl,
+                                            contentDescription = "بوستر ${info.anime.title}",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize().sharedPosterElement(
+                                                sharedTransitionScope, animatedVisibilityScope, sharedElementKey
+                                            )
+                                        )
                                     }
                                     Column(Modifier.weight(1f).padding(bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                         Text(info.anime.title, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Start, color = Color.White, fontWeight = FontWeight.ExtraBold, maxLines = 3, overflow = TextOverflow.Ellipsis)
@@ -970,4 +1004,22 @@ private fun Modifier.springClickable(
             if (hapticOnClick) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             onClick()
         }
+}
+
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+private fun Modifier.sharedPosterElement(
+    sharedTransitionScope: SharedTransitionScope?,
+    animatedVisibilityScope: AnimatedVisibilityScope?,
+    key: String?
+): Modifier {
+    if (sharedTransitionScope == null || animatedVisibilityScope == null || key.isNullOrBlank()) {
+        return this
+    }
+    return with(sharedTransitionScope) {
+        this@sharedPosterElement.sharedElement(
+            rememberSharedContentState(key = key),
+            animatedVisibilityScope = animatedVisibilityScope
+        )
+    }
 }
