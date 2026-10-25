@@ -255,46 +255,36 @@ object SlayerApi {
     }
 
     /**
-     * Fetch a larger poster from Kitsu for the details hero only.
-     * This is best-effort: the original Slayer poster remains the fallback.
+     * Resolve posters exclusively through Jikan API v4.
+     * In-memory caching prevents repeated requests while scrolling.
      */
-    suspend fun getHighResolutionPoster(anime: Anime): String? = withContext(Dispatchers.IO) {
+    private val jikanPosterCache = ConcurrentHashMap<String, String>()
+
+    suspend fun getJikanPoster(title: String, titleEnglish: String = ""): String? = withContext(Dispatchers.IO) {
         fun normalizeTitle(value: String): String = value.lowercase()
             .replace(Regex("[^\\p{L}\\p{N}]"), "")
 
-        val knownTitles = listOf(anime.title, anime.titleEn)
-            .map { normalizeTitle(it.trim()) }
-            .filter { it.length >= 3 }
-            .toSet()
-        if (knownTitles.isEmpty()) return@withContext null
-
-        val queries = listOf(anime.titleEn, anime.title)
+        val queries = listOf(titleEnglish, title)
             .map { it.trim() }
-            .filter { it.isNotBlank() }
+            .filter { it.length >= 2 }
             .distinct()
+        if (queries.isEmpty()) return@withContext null
+        val cacheKey = queries.joinToString("|") { it.lowercase() }
+        jikanPosterCache[cacheKey]?.let { return@withContext it }
+        val knownTitles = queries.map(::normalizeTitle).filter { it.length >= 3 }.toSet()
+
         for (query in queries) {
             try {
-                val url = "https://kitsu.io/api/edge/anime?filter[text]=${encode(query)}&page[limit]=10"
-                val body = httpGet(
-                    url,
-                    headers = mapOf(
-                        "Accept" to "application/vnd.api+json",
-                        "User-Agent" to "UchihaAnime/1.0 (Android)"
-                    ),
-                    timeout = 12
-                )
+                val url = "https://api.jikan.moe/v4/anime?q=${encode(query)}&limit=10"
+                val body = httpGet(url, headers = mapOf("Accept" to "application/json", "User-Agent" to UA), timeout = 12)
                 val items = JSONObject(body).optJSONArray("data") ?: continue
                 for (i in 0 until items.length()) {
-                    val attributes = items.optJSONObject(i)?.optJSONObject("attributes") ?: continue
-                    val titles = attributes.optJSONObject("titles")
+                    val item = items.optJSONObject(i) ?: continue
                     val candidateTitles = listOf(
-                        attributes.optString("canonicalTitle", ""),
-                        titles?.optString("en", "").orEmpty(),
-                        titles?.optString("en_jp", "").orEmpty(),
-                        titles?.optString("ja_jp", "").orEmpty()
-                    ).map { normalizeTitle(it) }.filter { it.isNotBlank() }
-
-                    // Never replace the poster with an unrelated result from a fuzzy search.
+                        item.optString("title", ""),
+                        item.optString("title_english", ""),
+                        item.optString("title_japanese", "")
+                    ).map(::normalizeTitle).filter { it.isNotBlank() }
                     val matches = candidateTitles.any { candidate ->
                         candidate in knownTitles || knownTitles.any { known ->
                             candidate.length >= 5 && known.length >= 5 &&
@@ -302,15 +292,20 @@ object SlayerApi {
                         }
                     }
                     if (!matches) continue
-
-                    val poster = attributes.optJSONObject("posterImage") ?: continue
-                    val candidate = poster.optString("original", "").ifBlank {
-                        poster.optString("large", "")
-                    }
-                    if (candidate.startsWith("https://")) return@withContext candidate
+                    val images = item.optJSONObject("images")
+                    val jpg = images?.optJSONObject("jpg")
+                    val webp = images?.optJSONObject("webp")
+                    val poster = listOf(
+                        jpg?.optString("large_image_url", "").orEmpty(),
+                        webp?.optString("large_image_url", "").orEmpty(),
+                        jpg?.optString("image_url", "").orEmpty(),
+                        webp?.optString("image_url", "").orEmpty()
+                    ).firstOrNull { it.startsWith("https://") } ?: continue
+                    jikanPosterCache[cacheKey] = poster
+                    return@withContext poster
                 }
             } catch (_: Exception) {
-                // Optional lookup must never block the details screen.
+                // No other provider is used if Jikan fails.
             }
         }
         null
