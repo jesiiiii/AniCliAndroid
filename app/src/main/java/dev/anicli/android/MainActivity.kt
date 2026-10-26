@@ -41,6 +41,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -91,6 +92,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -321,8 +324,7 @@ fun HomeScreen(
         if (vm.latest.isEmpty() && vm.trending.isEmpty() && vm.topRated.isEmpty()) vm.load()
     }
     Scaffold(containerColor = MaterialTheme.colorScheme.background, bottomBar = {
-        GlassBottomNavigation(
-            hazeState = hazeState,
+        CapsuleNavigationBar(
             selected = selectedTab,
             onHome = { selectedTab = "home"; searchActive = false },
             onManga = { selectedTab = "manga"; searchActive = false },
@@ -421,7 +423,7 @@ fun HomeScreen(
                         val picks = remember(vm.trending, vm.topRated) {
                             (vm.trending + vm.topRated)
                                 .distinctBy { it.id }
-                                .take(14)
+                                .take(5)
                         }
                         if (picks.isNotEmpty()) {
                             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -511,6 +513,62 @@ private fun SlayerPosterImage(posterUrl: String?, contentDescription: String?, c
             AsyncImage(model = posterUrl, contentDescription = contentDescription, contentScale = contentScale, modifier = Modifier.fillMaxSize())
         } else {
             Icon(Icons.Rounded.Star, contentDescription = contentDescription, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f), modifier = Modifier.size(28.dp))
+        }
+    }
+}
+
+@Composable
+private fun CapsuleNavigationBar(
+    selected: String,
+    onHome: () -> Unit,
+    onManga: () -> Unit,
+    onSettings: () -> Unit
+) {
+    val capsule = RoundedCornerShape(50)
+    data class NavItem(val id: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector, val action: () -> Unit)
+    val items = listOf(
+        NavItem("home", "الرئيسية", Icons.Rounded.Home, onHome),
+        NavItem("manga", "المانجا", Icons.Rounded.MenuBook, onManga),
+        NavItem("settings", "الإعدادات", Icons.Rounded.Settings, onSettings)
+    )
+    Row(
+        Modifier.fillMaxWidth().navigationBarsPadding()
+            .padding(start = 20.dp, end = 20.dp, top = 6.dp, bottom = 8.dp)
+            .shadow(8.dp, capsule).clip(capsule)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        items.forEach { item ->
+            val tint by animateColorAsState(
+                targetValue = if (selected == item.id) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                animationSpec = tween(150),
+                label = "${item.id}-icon-tint"
+            )
+            val pill by animateColorAsState(
+                targetValue = if (selected == item.id) MaterialTheme.colorScheme.surface else Color.Transparent,
+                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                label = "${item.id}-pill"
+            )
+            Row(
+                Modifier.weight(1f).clip(capsule).background(pill)
+                    .springClickable(onClick = item.action)
+                    .padding(vertical = 10.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(item.icon, contentDescription = item.label, tint = tint, modifier = Modifier.size(21.dp))
+                AnimatedVisibility(
+                    visible = selected == item.id,
+                    enter = fadeIn(tween(130)) + expandHorizontally(),
+                    exit = fadeOut(tween(90)) + shrinkHorizontally()
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Spacer(Modifier.width(6.dp))
+                        Text(item.label, color = tint, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+                    }
+                }
+            }
         }
     }
 }
@@ -611,22 +669,44 @@ private fun PosterTile(title: String, titleEnglish: String = title, badge: Strin
 
 @Composable
 private fun MangekyoSharingan(modifier: Modifier = Modifier) {
-    val composition by rememberLottieComposition(LottieCompositionSpec.Asset(SHARINGAN_LOOP_ASSET))
-    LottieAnimation(
-        composition = composition,
-        iterations = LottieConstants.IterateForever,
-        modifier = modifier
+    val angle = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            angle.animateTo(360f, animationSpec = tween(durationMillis = 1800))
+            angle.snapTo(0f)
+        }
+    }
+    OutlinedOriginalAsset(
+        url = "https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Mangekyou_Sharingan_Itachi.svg/500px-Mangekyou_Sharingan_Itachi.svg.png",
+        contentDescription = "مانغيكيو شارينغان إيتاتشي",
+        modifier = modifier.graphicsLayer { rotationZ = angle.value }
     )
 }
 
 @Composable
 private fun UchihaClanCrest(modifier: Modifier = Modifier) {
-    androidx.compose.ui.res.painterResource(R.drawable.uchiha_clan_crest).let { crest ->
-        androidx.compose.foundation.Image(
-            painter = crest,
-            contentDescription = "شعار عشيرة أوتشيها",
+    OutlinedOriginalAsset(
+        url = "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Symbole_Uchiwa.svg/500px-Symbole_Uchiwa.svg.png",
+        contentDescription = "شعار عشيرة أوتشيها",
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun OutlinedOriginalAsset(url: String, contentDescription: String, modifier: Modifier = Modifier) {
+    Box(modifier, contentAlignment = Alignment.Center) {
+        AsyncImage(
+            model = url,
+            contentDescription = null,
             contentScale = ContentScale.Fit,
-            modifier = modifier
+            colorFilter = ColorFilter.tint(Color.Black),
+            modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = 1.055f; scaleY = 1.055f }
+        )
+        AsyncImage(
+            model = url,
+            contentDescription = contentDescription,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxSize()
         )
     }
 }
@@ -926,13 +1006,22 @@ fun DetailsScreen(
                     ) {
                         item {
                             Box(Modifier.fillMaxWidth().height(446.dp)) {
-                                Box(Modifier.fillMaxWidth().height(410.dp).clip(RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp)).background(Color(0xFFF1EEEE))) {
-                                    SlayerPosterImage(posterUrl = info.anime.posterUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().blur(34.dp))
-                                    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.20f)))
+                                Box(Modifier.fillMaxWidth().height(410.dp).clip(RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp)).background(MaterialTheme.colorScheme.background)) {
+                                    SlayerPosterImage(posterUrl = info.anime.posterUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                                    Box(
+                                        Modifier.fillMaxSize().background(
+                                            Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.30f), Color.Transparent), startY = 0f, endY = 230f)
+                                        )
+                                    )
+                                    Box(
+                                        Modifier.fillMaxWidth().height(250.dp).align(Alignment.BottomCenter).background(
+                                            Brush.verticalGradient(listOf(Color.Transparent, MaterialTheme.colorScheme.background))
+                                        )
+                                    )
                                     IconButton(onClick = onBack, modifier = Modifier.padding(14.dp).align(Alignment.TopStart).background(Color.Black.copy(alpha = 0.42f), CircleShape)) {
                                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "رجوع", tint = Color.White)
                                     }
-                                    Row(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(start = 22.dp, end = 22.dp, bottom = 64.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                                    Row(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(start = 22.dp, end = 22.dp, bottom = 22.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                                         Box(Modifier.width(112.dp).height(158.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
                                             SlayerPosterImage(
                                                 posterUrl = info.anime.posterUrl,
@@ -944,13 +1033,13 @@ fun DetailsScreen(
                                             )
                                         }
                                         Column(Modifier.weight(1f).padding(bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            Text(info.anime.title, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Start, color = Color.White, fontWeight = FontWeight.ExtraBold, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                                            Text(info.anime.title, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Start, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.ExtraBold, maxLines = 3, overflow = TextOverflow.Ellipsis)
                                             if (info.anime.titleEn.isNotBlank() && info.anime.titleEn != info.anime.title) {
-                                                Text(info.anime.titleEn, style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.82f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                Text(info.anime.titleEn, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                             }
                                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                                                 Icon(Icons.Rounded.Star, contentDescription = "التقييم", tint = Color(0xFFFFD166), modifier = Modifier.size(18.dp))
-                                                Text(info.anime.rating.ifBlank { "—" }, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                                Text(info.anime.rating.ifBlank { "—" }, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                                             }
                                         }
                                     }
