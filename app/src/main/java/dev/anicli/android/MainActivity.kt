@@ -52,7 +52,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.MenuBook
+import androidx.compose.material.icons.rounded.Category
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.Button
@@ -558,7 +558,7 @@ private fun CapsuleNavigationBar(
     data class NavItem(val id: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector, val action: () -> Unit)
     val items = listOf(
         NavItem("home", "الرئيسية", Icons.Rounded.Home, onHome),
-        NavItem("categories", "التصنيفات", Icons.Rounded.MenuBook, onCategories),
+        NavItem("categories", "التصنيفات", Icons.Rounded.Category, onCategories),
         NavItem("profile", "حسابي", Icons.Rounded.Settings, onSettings)
     )
     Row(
