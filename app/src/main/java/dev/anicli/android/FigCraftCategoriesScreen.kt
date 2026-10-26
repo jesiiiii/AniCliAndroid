@@ -4,11 +4,13 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,6 +42,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -59,12 +65,15 @@ internal fun FigCraftCategoriesScreen(
         val matchesQuery = query.isBlank() ||
             item.title.contains(query.trim(), ignoreCase = true) ||
             item.titleEn.contains(query.trim(), ignoreCase = true)
+        val genreText = item.genres.lowercase()
         val matchesGenre = selectedGenre == "الكل" || item.genres.contains(selectedGenre, ignoreCase = true) ||
-            (selectedGenre == "فانتازيا" && item.genres.contains("fantasy", ignoreCase = true)) ||
-            (selectedGenre == "أكشن" && item.genres.contains("action", ignoreCase = true)) ||
-            (selectedGenre == "مغامرة" && item.genres.contains("adventure", ignoreCase = true)) ||
-            (selectedGenre == "دراما" && item.genres.contains("drama", ignoreCase = true)) ||
-            (selectedGenre == "كوميديا" && item.genres.contains("comedy", ignoreCase = true))
+            (selectedGenre == "فانتازيا" && (genreText.contains("fantasy") || genreText.contains("فانتازيا"))) ||
+            (selectedGenre == "أكشن" && (genreText.contains("action") || genreText.contains("اكشن") || genreText.contains("أكشن"))) ||
+            (selectedGenre == "مغامرة" && (genreText.contains("adventure") || genreText.contains("مغامرة"))) ||
+            (selectedGenre == "دراما" && (genreText.contains("drama") || genreText.contains("دراما"))) ||
+            (selectedGenre == "كوميديا" && (genreText.contains("comedy") || genreText.contains("كوميديا"))) ||
+            (selectedGenre == "شونين" && (genreText.contains("shounen") || genreText.contains("shonen") || genreText.contains("شونين"))) ||
+            (selectedGenre == "خيال" && (genreText.contains("fiction") || genreText.contains("خيال")) )
         matchesQuery && matchesGenre
     }
 
@@ -114,10 +123,7 @@ internal fun FigCraftCategoriesScreen(
                         Modifier
                             .clip(RoundedCornerShape(50))
                             .background(if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) { selectedGenre = genre }
+                            .figCraftSpringClickable { selectedGenre = genre }
                             .animateContentSize(spring(stiffness = Spring.StiffnessMediumLow))
                             .padding(horizontal = 16.dp, vertical = 10.dp)
                     ) {
@@ -166,7 +172,7 @@ internal fun FigCraftCategoriesScreen(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(20.dp))
                         .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                        .clickable { onOpenAnime(item) }
+                        .figCraftSpringClickable { onOpenAnime(item) }
                         .padding(10.dp),
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -308,7 +314,7 @@ private fun ProfileActionRow(
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerLow)
-            .clickable { onClick() }
+            .figCraftSpringClickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 15.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)
@@ -326,4 +332,29 @@ private fun ProfileActionRow(
         }
         Text("‹", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
+}
+
+
+@Composable
+private fun Modifier.figCraftSpringClickable(onClick: () -> Unit): Modifier {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.975f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "figcraft-press-scale"
+    )
+    val haptics = LocalHapticFeedback.current
+    return this
+        .graphicsLayer { scaleX = scale; scaleY = scale }
+        .clickable(
+            interactionSource = interactionSource,
+            indication = LocalIndication.current
+        ) {
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            onClick()
+        }
 }
