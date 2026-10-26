@@ -334,7 +334,7 @@ fun HomeScreen(
     }
     Scaffold(containerColor = MaterialTheme.colorScheme.background, bottomBar = {
         CapsuleNavigationBar(
-            selected = if (searchActive) "search" else if (selectedTab == "settings") "profile" else selectedTab,
+            selected = if (searchActive) "search" else if (selectedTab == "settings" || selectedTab == "categories") "home" else selectedTab,
             onHome = { selectedTab = "home"; searchActive = false },
             onCategories = { selectedTab = "categories"; searchActive = false },
             onSearch = { searchActive = true },
@@ -402,7 +402,7 @@ fun HomeScreen(
             }
             else -> LazyColumn(
                 state = homeListState,
-                modifier = Modifier.fillMaxSize().padding(innerPadding),
+                modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(24.dp),
                 contentPadding = PaddingValues(bottom = 32.dp)
             ) {
@@ -579,7 +579,6 @@ private fun CapsuleNavigationBar(
     data class NavItem(val id: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector, val action: () -> Unit)
     val items = listOf(
         NavItem("home", "الرئيسية", Icons.Rounded.Home, onHome),
-        NavItem("categories", "التصنيفات", Icons.Rounded.Category, onCategories),
         NavItem("search", "البحث", Icons.Rounded.Search, onSearch),
         NavItem("favorites", "المفضلة", Icons.Rounded.FavoriteBorder, onFavorites),
         NavItem("profile", "الإعدادات", Icons.Rounded.Settings, onSettings)
