@@ -348,12 +348,37 @@ fun HomeScreen(
             selectedTab == "manga" -> Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) { CenterState("المانجا", "قسم المانجا جاهز للربط بمصدر مانجا مستقل.") }
             selectedTab == "settings" -> SettingsScreen()
             vm.loading && vm.latest.isEmpty() -> Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        UchihaClanCrest(Modifier.size(width = 42.dp, height = 50.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                            Text("Uchiha", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Black)
+                            Text("Anime", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                        }
+                        MangekyoSharingan(Modifier.size(58.dp))
+                    }
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     Text("نجهّز لك عالم الأنمي", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            vm.error != null && vm.latest.isEmpty() -> Box(Modifier.padding(innerPadding)) {
+            vm.error != null && vm.latest.isEmpty() -> Column(Modifier.fillMaxSize().padding(horizontal = 22.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        UchihaClanCrest(Modifier.size(width = 34.dp, height = 40.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                            Text("Uchiha", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Black)
+                            Text("Anime", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    MangekyoSharingan(Modifier.size(58.dp))
+                }
                 ErrorState("تعذّر تحميل الصفحة", vm.error.orEmpty()) { vm.load() }
             }
             else -> LazyColumn(
@@ -678,6 +703,7 @@ private fun MangekyoSharingan(modifier: Modifier = Modifier) {
     }
     OutlinedOriginalAsset(
         url = "https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Mangekyou_Sharingan_Itachi.svg/500px-Mangekyou_Sharingan_Itachi.svg.png",
+        fallbackResource = R.drawable.ic_mangekyo_fallback,
         contentDescription = "مانغيكيو شارينغان إيتاتشي",
         modifier = modifier.graphicsLayer { rotationZ = angle.value }
     )
@@ -687,14 +713,28 @@ private fun MangekyoSharingan(modifier: Modifier = Modifier) {
 private fun UchihaClanCrest(modifier: Modifier = Modifier) {
     OutlinedOriginalAsset(
         url = "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Symbole_Uchiwa.svg/500px-Symbole_Uchiwa.svg.png",
+        fallbackResource = R.drawable.ic_uchiha_crest_fallback,
         contentDescription = "شعار عشيرة أوتشيها",
         modifier = modifier
     )
 }
 
 @Composable
-private fun OutlinedOriginalAsset(url: String, contentDescription: String, modifier: Modifier = Modifier) {
+private fun OutlinedOriginalAsset(
+    url: String,
+    fallbackResource: Int,
+    contentDescription: String,
+    modifier: Modifier = Modifier
+) {
     Box(modifier, contentAlignment = Alignment.Center) {
+        // Always render a bundled vector first, so the brand marks remain visible
+        // during loading, with no network, or if Wikimedia is temporarily unavailable.
+        androidx.compose.foundation.Image(
+            painter = androidx.compose.ui.res.painterResource(fallbackResource),
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxSize()
+        )
         AsyncImage(
             model = url,
             contentDescription = null,
