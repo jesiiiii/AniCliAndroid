@@ -383,9 +383,9 @@ fun HomeScreen(
                         ) {
                             items(recommendations, key = { it.id }) { anime ->
                                 Column(
-                                    Modifier.width(148.dp).springClickable {
+                                    Modifier.width(148.dp).springClickable(onClick = {
                                         onOpenAnime(anime, "anime-poster:recommendation:${anime.id}")
-                                    },
+                                    }),
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Box(
