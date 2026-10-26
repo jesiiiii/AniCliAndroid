@@ -801,7 +801,8 @@ fun AnimeCard(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
             contentColor = MaterialTheme.colorScheme.onSurface
         ),
-        elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 0.dp),
         shape = RoundedCornerShape(22.dp)
     ) {
         Row(
@@ -1224,7 +1225,8 @@ fun DetailsScreen(
                                             colors = androidx.compose.material3.CardDefaults.cardColors(
                                                 containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
                                             ),
-                                            elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 2.dp)
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 0.dp),
                                         ) {
                                             Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                                 Box(
