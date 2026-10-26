@@ -42,6 +42,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -82,6 +83,8 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -284,7 +287,7 @@ fun HomeScreen(
     BackHandler(enabled = searchActive) { searchActive = false }
     val vm: HomeViewModel = viewModel()
     val homeListState = androidx.compose.foundation.lazy.rememberLazyListState()
-    val scrollBlur by animateDpAsState(if (homeListState.isScrollInProgress) 1.6.dp else 0.dp, label = "poster-scroll-blur")
+    val scrollBlur = 0.dp // Keep poster artwork crisp while scrolling.
     LaunchedEffect(Unit) {
         if (vm.latest.isEmpty() && vm.trending.isEmpty() && vm.topRated.isEmpty()) vm.load()
     }
@@ -365,6 +368,58 @@ fun HomeScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text("★  ${featured.rating}", color = Color(0xFFFFD6A5), style = MaterialTheme.typography.labelLarge)
                                     Text("اكتشف التفاصيل  ↗", color = Color.White, style = MaterialTheme.typography.labelMedium)
+                                }
+                            }
+                        }
+                    }
+                }
+                val recommendations = vm.trending.distinctBy { it.id }.take(5)
+                if (recommendations.isNotEmpty()) {
+                    item { SectionHeading("اختيارنا لك", "أنميات اخترناها لك", "مختارات") }
+                    item {
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 20.dp),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            items(recommendations, key = { it.id }) { anime ->
+                                Column(
+                                    Modifier.width(148.dp).springClickable {
+                                        onOpenAnime(anime, "anime-poster:recommendation:${anime.id}")
+                                    },
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Box(
+                                        Modifier.fillMaxWidth().height(214.dp)
+                                            .clip(RoundedCornerShape(18.dp))
+                                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    ) {
+                                        SlayerPosterImage(
+                                            posterUrl = anime.posterUrl,
+                                            contentDescription = "بوستر ${anime.title}",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                        Box(
+                                            Modifier.fillMaxWidth().height(76.dp).align(Alignment.BottomCenter)
+                                                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.76f))))
+                                        )
+                                        Text(
+                                            anime.rating.ifBlank { "—" },
+                                            modifier = Modifier.align(Alignment.BottomEnd).padding(9.dp),
+                                            color = Color.White,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                    Text(
+                                        anime.title,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                        minLines = 2
+                                    )
                                 }
                             }
                         }
@@ -451,8 +506,8 @@ private fun CapsuleNavigationBar(
 ) {
     val capsule = RoundedCornerShape(50)
     Row(
-        Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 6.dp, bottom = 22.dp)
-            .shadow(12.dp, capsule).clip(capsule)
+        Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 20.dp, end = 20.dp, top = 6.dp, bottom = 8.dp)
+            .shadow(8.dp, capsule).clip(capsule)
             .background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(5.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -534,25 +589,41 @@ private fun MangekyoSharingan(modifier: Modifier = Modifier) {
         while (true) {
             angle.animateTo(360f, animationSpec = tween(durationMillis = 1500))
             angle.snapTo(0f)
-            delay(1100)
         }
     }
-    AsyncImage(
-        model = "https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Mangekyou_Sharingan_Itachi.svg/500px-Mangekyou_Sharingan_Itachi.svg.png",
+    OutlinedOriginalAsset(
+        url = "https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Mangekyou_Sharingan_Itachi.svg/500px-Mangekyou_Sharingan_Itachi.svg.png",
         contentDescription = "مانغيكيو شارينغان إيتاتشي",
-        contentScale = ContentScale.Fit,
         modifier = modifier.graphicsLayer { rotationZ = angle.value }
     )
 }
 
 @Composable
 private fun UchihaClanCrest(modifier: Modifier = Modifier) {
-    AsyncImage(
-        model = "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Symbole_Uchiwa.svg/500px-Symbole_Uchiwa.svg.png",
+    OutlinedOriginalAsset(
+        url = "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Symbole_Uchiwa.svg/500px-Symbole_Uchiwa.svg.png",
         contentDescription = "شعار عشيرة أوتشيها",
-        contentScale = ContentScale.Fit,
         modifier = modifier
     )
+}
+
+@Composable
+private fun OutlinedOriginalAsset(url: String, contentDescription: String, modifier: Modifier = Modifier) {
+    Box(modifier, contentAlignment = Alignment.Center) {
+        AsyncImage(
+            model = url,
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            colorFilter = ColorFilter.tint(Color.Black),
+            modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = 1.055f; scaleY = 1.055f }
+        )
+        AsyncImage(
+            model = url,
+            contentDescription = contentDescription,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxSize()
+        )
+    }
 }
 
 /** Cinematic poster card: editorial typography, clean surfaces, and a confident accent. */
@@ -826,9 +897,18 @@ fun DetailsScreen(
                         contentPadding = PaddingValues(bottom = 32.dp)
                     ) {
                         item {
-                            Box(Modifier.fillMaxWidth().height(410.dp).clip(RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp)).background(Color(0xFFF1EEEE))) {
-                                SlayerPosterImage(posterUrl = info.anime.posterUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().blur(34.dp))
-                                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.20f)))
+                            Box(Modifier.fillMaxWidth().height(410.dp).clip(RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp)).background(MaterialTheme.colorScheme.background)) {
+                                SlayerPosterImage(posterUrl = info.anime.posterUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                                Box(
+                                    Modifier.fillMaxSize().background(
+                                        Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.32f), Color.Transparent), startY = 0f, endY = 230f)
+                                    )
+                                )
+                                Box(
+                                    Modifier.fillMaxWidth().height(250.dp).align(Alignment.BottomCenter).background(
+                                        Brush.verticalGradient(listOf(Color.Transparent, MaterialTheme.colorScheme.background))
+                                    )
+                                )
                                 IconButton(onClick = onBack, modifier = Modifier.padding(14.dp).align(Alignment.TopStart).background(Color.Black.copy(alpha = 0.42f), CircleShape)) {
                                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "رجوع", tint = Color.White)
                                 }
@@ -844,13 +924,13 @@ fun DetailsScreen(
                                         )
                                     }
                                     Column(Modifier.weight(1f).padding(bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Text(info.anime.title, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Start, color = Color.White, fontWeight = FontWeight.ExtraBold, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                                        Text(info.anime.title, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Start, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.ExtraBold, maxLines = 3, overflow = TextOverflow.Ellipsis)
                                         if (info.anime.titleEn.isNotBlank() && info.anime.titleEn != info.anime.title) {
-                                            Text(info.anime.titleEn, style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.82f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            Text(info.anime.titleEn, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         }
                                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                                             Icon(Icons.Rounded.Star, contentDescription = "التقييم", tint = Color(0xFFFFD166), modifier = Modifier.size(18.dp))
-                                            Text(info.anime.rating.ifBlank { "—" }, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                            Text(info.anime.rating.ifBlank { "—" }, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                                         }
                                         Button(onClick = { info.episodes.firstOrNull()?.let { onSelectEpisode(it.number) } }, enabled = info.episodes.isNotEmpty(), shape = RoundedCornerShape(50), contentPadding = PaddingValues(horizontal = 22.dp, vertical = 10.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = Color.White, disabledContainerColor = Color.DarkGray)) {
                                             Text("▶  ابدأ المشاهدة", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
