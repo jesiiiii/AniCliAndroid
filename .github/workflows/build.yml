@@ -3,7 +3,7 @@ name: build APK
 
 on:
   push:
-    branches: [ main, master, feature/safe-playback-improvements, feature/ios26-motion ]
+    branches: [ main, master, feature/safe-playback-improvements, feature/ios26-motion, feature/uchiha-motion-upgrade ]
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
