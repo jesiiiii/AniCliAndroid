@@ -30,6 +30,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.FileDownload
+import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.SupportAgent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -347,7 +353,7 @@ internal fun FigCraftProfileScreen(onOpenSettings: () -> Unit) {
             ProfileActionRow(
                 title = "الحساب",
                 subtitle = "ملف المشاهدة المحلي",
-                icon = androidx.compose.material.icons.Icons.Rounded.Person,
+                icon = Icons.Rounded.Person,
                 onClick = { infoDialog = "الحساب" }
             )
         }
@@ -355,7 +361,7 @@ internal fun FigCraftProfileScreen(onOpenSettings: () -> Unit) {
             ProfileActionRow(
                 title = "التفضيلات",
                 subtitle = "المظهر والتشغيل وتجربة المشاهدة",
-                icon = androidx.compose.material.icons.Icons.Rounded.Settings,
+                icon = Icons.Rounded.Settings,
                 onClick = onOpenSettings
             )
         }
@@ -363,7 +369,7 @@ internal fun FigCraftProfileScreen(onOpenSettings: () -> Unit) {
             ProfileActionRow(
                 title = "جودة الفيديو",
                 subtitle = "إدارة خيارات المشاهدة من الإعدادات",
-                icon = androidx.compose.material.icons.Icons.Rounded.Star,
+                icon = Icons.Rounded.Star,
                 onClick = onOpenSettings
             )
         }
@@ -371,7 +377,7 @@ internal fun FigCraftProfileScreen(onOpenSettings: () -> Unit) {
             ProfileActionRow(
                 title = "التنزيلات",
                 subtitle = "حالة ميزة المشاهدة دون اتصال",
-                icon = androidx.compose.material.icons.Icons.Rounded.FileDownload,
+                icon = Icons.Rounded.FileDownload,
                 onClick = { infoDialog = "التنزيلات" }
             )
         }
@@ -379,7 +385,7 @@ internal fun FigCraftProfileScreen(onOpenSettings: () -> Unit) {
             ProfileActionRow(
                 title = "الإشعارات",
                 subtitle = "تنبيهات الحلقات الجديدة",
-                icon = androidx.compose.material.icons.Icons.Rounded.Notifications,
+                icon = Icons.Rounded.Notifications,
                 onClick = { infoDialog = "الإشعارات" }
             )
         }
@@ -387,7 +393,7 @@ internal fun FigCraftProfileScreen(onOpenSettings: () -> Unit) {
             ProfileActionRow(
                 title = "الدعم",
                 subtitle = "معلومات المساعدة والتواصل",
-                icon = androidx.compose.material.icons.Icons.Rounded.SupportAgent,
+                icon = Icons.Rounded.SupportAgent,
                 onClick = { infoDialog = "الدعم" }
             )
         }
