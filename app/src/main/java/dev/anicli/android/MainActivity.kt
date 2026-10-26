@@ -316,6 +316,7 @@ fun HomeScreen(
 ) {
     var searchActive by rememberSaveable { mutableStateOf(false) }
     var selectedTab by rememberSaveable { mutableStateOf("home") }
+    BackHandler(enabled = selectedTab == "settings") { selectedTab = "profile" }
     BackHandler(enabled = searchActive) { searchActive = false }
     val vm: HomeViewModel = viewModel()
     val homeListState = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -325,10 +326,10 @@ fun HomeScreen(
     }
     Scaffold(containerColor = MaterialTheme.colorScheme.background, bottomBar = {
         CapsuleNavigationBar(
-            selected = selectedTab,
+            selected = if (selectedTab == "settings") "profile" else selectedTab,
             onHome = { selectedTab = "home"; searchActive = false },
             onCategories = { selectedTab = "categories"; searchActive = false },
-            onSettings = { selectedTab = "settings"; searchActive = false }
+            onSettings = { selectedTab = "profile"; searchActive = false }
         )
     }) { innerPadding ->
         Box(
@@ -346,6 +347,7 @@ fun HomeScreen(
             )
         } else when {
             selectedTab == "categories" -> FigCraftCategoriesScreen(\n                anime = (vm.trending + vm.topRated).distinctBy { it.id },\n                onOpenAnime = { anime -> onOpenAnime(anime, "categories-${anime.id}") }\n            )
+            selectedTab == "profile" -> FigCraftProfileScreen(onOpenSettings = { selectedTab = "settings" })
             selectedTab == "settings" -> SettingsScreen()
             vm.loading && vm.latest.isEmpty() -> Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -554,7 +556,7 @@ private fun CapsuleNavigationBar(
     val items = listOf(
         NavItem("home", "الرئيسية", Icons.Rounded.Home, onHome),
         NavItem("categories", "التصنيفات", Icons.Rounded.MenuBook, onCategories),
-        NavItem("settings", "الإعدادات", Icons.Rounded.Settings, onSettings)
+        NavItem("profile", "حسابي", Icons.Rounded.Settings, onSettings)
     )
     Row(
         Modifier.fillMaxWidth().navigationBarsPadding()
