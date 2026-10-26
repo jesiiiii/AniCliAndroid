@@ -327,7 +327,7 @@ fun HomeScreen(
         CapsuleNavigationBar(
             selected = selectedTab,
             onHome = { selectedTab = "home"; searchActive = false },
-            onManga = { selectedTab = "manga"; searchActive = false },
+            onCategories = { selectedTab = "categories"; searchActive = false },
             onSettings = { selectedTab = "settings"; searchActive = false }
         )
     }) { innerPadding ->
@@ -345,7 +345,7 @@ fun HomeScreen(
                 onOpenAnime = onOpenAnime
             )
         } else when {
-            selectedTab == "manga" -> Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) { CenterState("المانجا", "قسم المانجا جاهز للربط بمصدر مانجا مستقل.") }
+            selectedTab == "categories" -> FigCraftCategoriesScreen(\n                anime = (vm.trending + vm.topRated).distinctBy { it.id },\n                onOpenAnime = { anime -> onOpenAnime(anime, "categories-${anime.id}") }\n            )
             selectedTab == "settings" -> SettingsScreen()
             vm.loading && vm.latest.isEmpty() -> Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -546,14 +546,14 @@ private fun SlayerPosterImage(posterUrl: String?, contentDescription: String?, c
 private fun CapsuleNavigationBar(
     selected: String,
     onHome: () -> Unit,
-    onManga: () -> Unit,
+    onCategories: () -> Unit,
     onSettings: () -> Unit
 ) {
     val capsule = RoundedCornerShape(50)
     data class NavItem(val id: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector, val action: () -> Unit)
     val items = listOf(
         NavItem("home", "الرئيسية", Icons.Rounded.Home, onHome),
-        NavItem("manga", "المانجا", Icons.Rounded.MenuBook, onManga),
+        NavItem("categories", "التصنيفات", Icons.Rounded.MenuBook, onCategories),
         NavItem("settings", "الإعدادات", Icons.Rounded.Settings, onSettings)
     )
     Row(
