@@ -317,7 +317,10 @@ fun HomeScreen(
     var searchActive by rememberSaveable { mutableStateOf(false) }
     var selectedTab by rememberSaveable { mutableStateOf("home") }
     BackHandler(enabled = selectedTab == "settings") { selectedTab = "profile" }
+    BackHandler(enabled = selectedTab == "favorites") { selectedTab = "home" }
     BackHandler(enabled = searchActive) { searchActive = false }
+    val homeContext = LocalContext.current
+    val favorites = FavoriteStore.all(homeContext)
     val vm: HomeViewModel = viewModel()
     val homeListState = androidx.compose.foundation.lazy.rememberLazyListState()
     val hazeState = remember { HazeState() }
@@ -326,9 +329,11 @@ fun HomeScreen(
     }
     Scaffold(containerColor = MaterialTheme.colorScheme.background, bottomBar = {
         CapsuleNavigationBar(
-            selected = if (selectedTab == "settings") "profile" else selectedTab,
+            selected = if (searchActive) "search" else if (selectedTab == "settings") "profile" else selectedTab,
             onHome = { selectedTab = "home"; searchActive = false },
             onCategories = { selectedTab = "categories"; searchActive = false },
+            onSearch = { searchActive = true },
+            onFavorites = { selectedTab = "favorites"; searchActive = false },
             onSettings = { selectedTab = "profile"; searchActive = false }
         )
     }) { innerPadding ->
@@ -349,6 +354,10 @@ fun HomeScreen(
             selectedTab == "categories" -> FigCraftCategoriesScreen(
                 anime = (vm.trending + vm.topRated).distinctBy { it.id },
                 onOpenAnime = { anime -> onOpenAnime(anime, "categories-${anime.id}") }
+            )
+            selectedTab == "favorites" -> FigCraftFavoritesScreen(
+                favorites = favorites,
+                onOpenAnime = { anime -> onOpenAnime(anime, "anime-poster:favorites:${anime.id}") }
             )
             selectedTab == "profile" -> FigCraftProfileScreen(onOpenSettings = { selectedTab = "settings" })
             selectedTab == "settings" -> SettingsScreen()
@@ -409,7 +418,12 @@ fun HomeScreen(
                                     Text("Anime", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                                 }
                             }
-                            MangekyoSharingan(Modifier.size(58.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                IconButton(onClick = { selectedTab = "categories"; searchActive = false }) {
+                                    Icon(Icons.Rounded.Category, contentDescription = "التصنيفات", tint = MaterialTheme.colorScheme.primary)
+                                }
+                                MangekyoSharingan(Modifier.size(58.dp))
+                            }
                         }
                         Box(
                             Modifier.fillMaxWidth()
@@ -552,6 +566,8 @@ private fun CapsuleNavigationBar(
     selected: String,
     onHome: () -> Unit,
     onCategories: () -> Unit,
+    onSearch: () -> Unit,
+    onFavorites: () -> Unit,
     onSettings: () -> Unit
 ) {
     val capsule = RoundedCornerShape(50)
@@ -559,13 +575,17 @@ private fun CapsuleNavigationBar(
     val items = listOf(
         NavItem("home", "الرئيسية", Icons.Rounded.Home, onHome),
         NavItem("categories", "التصنيفات", Icons.Rounded.Category, onCategories),
-        NavItem("profile", "حسابي", Icons.Rounded.Settings, onSettings)
+        NavItem("search", "البحث", Icons.Rounded.Search, onSearch),
+        NavItem("favorites", "المفضلة", Icons.Rounded.FavoriteBorder, onFavorites),
+        NavItem("profile", "الإعدادات", Icons.Rounded.Settings, onSettings)
     )
     Row(
         Modifier.fillMaxWidth().navigationBarsPadding()
-            .padding(start = 20.dp, end = 20.dp, top = 6.dp, bottom = 8.dp)
-            .shadow(8.dp, capsule).clip(capsule)
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(5.dp),
+            .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 8.dp)
+            .clip(capsule)
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, capsule)
+            .padding(4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
