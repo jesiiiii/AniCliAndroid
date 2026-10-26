@@ -346,7 +346,10 @@ fun HomeScreen(
                 onOpenAnime = onOpenAnime
             )
         } else when {
-            selectedTab == "categories" -> FigCraftCategoriesScreen(\n                anime = (vm.trending + vm.topRated).distinctBy { it.id },\n                onOpenAnime = { anime -> onOpenAnime(anime, "categories-${anime.id}") }\n            )
+            selectedTab == "categories" -> FigCraftCategoriesScreen(
+                anime = (vm.trending + vm.topRated).distinctBy { it.id },
+                onOpenAnime = { anime -> onOpenAnime(anime, "categories-${anime.id}") }
+            )
             selectedTab == "profile" -> FigCraftProfileScreen(onOpenSettings = { selectedTab = "settings" })
             selectedTab == "settings" -> SettingsScreen()
             vm.loading && vm.latest.isEmpty() -> Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
