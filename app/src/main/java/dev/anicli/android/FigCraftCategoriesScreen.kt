@@ -3,11 +3,13 @@ package dev.anicli.android
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -41,18 +43,26 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.foundation.LocalIndication
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 
-private val FigCraftGenres = listOf("الكل", "أكشن", "مغامرة", "خيال", "شونين", "دراما", "كوميديا", "فانتازيا")
+private data class FigCraftGenre(val label: String, val terms: List<String>)
+private val FigCraftGenres = listOf(
+    FigCraftGenre("الكل", emptyList()),
+    FigCraftGenre("خيال", listOf("fantasy", "fiction", "خيال", "فانتازيا")),
+    FigCraftGenre("أكشن", listOf("action", "أكشن", "اكشن")),
+    FigCraftGenre("شونين", listOf("shounen", "shonen", "شونين")),
+    FigCraftGenre("مغامرة", listOf("adventure", "مغامرة")),
+    FigCraftGenre("دراما", listOf("drama", "دراما")),
+    FigCraftGenre("كوميديا", listOf("comedy", "كوميديا"))
+)
 
 @Composable
 internal fun FigCraftCategoriesScreen(
@@ -62,39 +72,54 @@ internal fun FigCraftCategoriesScreen(
     var selectedGenre by rememberSaveable { mutableStateOf("الكل") }
     var query by rememberSaveable { mutableStateOf("") }
     val filtered = anime.distinctBy { it.id }.filter { item ->
-        val matchesQuery = query.isBlank() ||
-            item.title.contains(query.trim(), ignoreCase = true) ||
-            item.titleEn.contains(query.trim(), ignoreCase = true)
+        val q = query.trim()
+        val matchesQuery = q.isBlank() ||
+            item.title.contains(q, ignoreCase = true) ||
+            item.titleEn.contains(q, ignoreCase = true)
+        val genre = FigCraftGenres.firstOrNull { it.label == selectedGenre }
         val genreText = item.genres.lowercase()
-        val matchesGenre = selectedGenre == "الكل" || item.genres.contains(selectedGenre, ignoreCase = true) ||
-            (selectedGenre == "فانتازيا" && (genreText.contains("fantasy") || genreText.contains("فانتازيا"))) ||
-            (selectedGenre == "أكشن" && (genreText.contains("action") || genreText.contains("اكشن") || genreText.contains("أكشن"))) ||
-            (selectedGenre == "مغامرة" && (genreText.contains("adventure") || genreText.contains("مغامرة"))) ||
-            (selectedGenre == "دراما" && (genreText.contains("drama") || genreText.contains("دراما"))) ||
-            (selectedGenre == "كوميديا" && (genreText.contains("comedy") || genreText.contains("كوميديا"))) ||
-            (selectedGenre == "شونين" && (genreText.contains("shounen") || genreText.contains("shonen") || genreText.contains("شونين"))) ||
-            (selectedGenre == "خيال" && (genreText.contains("fiction") || genreText.contains("خيال")) )
+        val matchesGenre = selectedGenre == "الكل" ||
+            (genre?.terms?.any { term -> genreText.contains(term.lowercase()) } == true) ||
+            item.genres.contains(selectedGenre, ignoreCase = true)
         matchesQuery && matchesGenre
     }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 28.dp),
+        contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 20.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text(
-                    "اكتشف عالم الأنمي",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Black
-                )
-                Text(
-                    "اختر التصنيف الذي يناسب مزاجك",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        "الأنميات",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Black
+                    )
+                    Text(
+                        "اعثر على حكايتك التالية",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Box(
+                    Modifier.size(46.dp).clip(RoundedCornerShape(15.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                    contentAlignment = Alignment.Center
+                ) {
+                    androidx.compose.material3.Icon(
+                        Icons.Rounded.Search,
+                        contentDescription = "اكتشاف الأنمي",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(23.dp)
+                    )
+                }
             }
         }
         item {
@@ -103,8 +128,8 @@ internal fun FigCraftCategoriesScreen(
                 onValueChange = { query = it },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                shape = RoundedCornerShape(18.dp),
-                placeholder = { Text("ابحث عن أنمي") },
+                shape = RoundedCornerShape(17.dp),
+                placeholder = { Text("ابحث عن أنمي...") },
                 leadingIcon = { androidx.compose.material3.Icon(Icons.Rounded.Search, contentDescription = "بحث") },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
@@ -117,19 +142,24 @@ internal fun FigCraftCategoriesScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(vertical = 2.dp)
             ) {
-                items(FigCraftGenres) { genre ->
-                    val selected = selectedGenre == genre
+                items(FigCraftGenres, key = { it.label }) { genre ->
+                    val selected = selectedGenre == genre.label
                     Box(
                         Modifier
                             .clip(RoundedCornerShape(50))
-                            .background(if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh)
-                            .figCraftSpringClickable { selectedGenre = genre }
+                            .border(
+                                width = 1.dp,
+                                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                shape = RoundedCornerShape(50)
+                            )
+                            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
+                            .figCraftSpringClickable { selectedGenre = genre.label }
                             .animateContentSize(spring(stiffness = Spring.StiffnessMediumLow))
-                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                            .padding(horizontal = 15.dp, vertical = 10.dp)
                     ) {
                         Text(
-                            genre,
-                            color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            genre.label,
+                            color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
                         )
@@ -144,7 +174,7 @@ internal fun FigCraftCategoriesScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    if (selectedGenre == "الكل") "كل الأنميات" else selectedGenre,
+                    if (selectedGenre == "الكل") "التصنيفات" else selectedGenre,
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.ExtraBold
@@ -160,64 +190,104 @@ internal fun FigCraftCategoriesScreen(
             item {
                 AnimatedVisibility(visible = true, enter = fadeIn(), exit = fadeOut()) {
                     CenterState(
-                        if (anime.isEmpty()) "نحمّل التصنيفات" else "لا توجد نتائج هنا",
-                        if (anime.isEmpty()) "تظهر الأنميات بمجرد اكتمال تحميل البيانات." else "جرّب تصنيفًا آخر أو غيّر كلمات البحث."
+                        if (anime.isEmpty()) "نحمّل الأنميات" else "لا توجد نتائج",
+                        if (anime.isEmpty()) "ستظهر الأعمال هنا بعد اكتمال تحميل البيانات." else "غيّر التصنيف أو جرّب كلمة بحث أخرى."
                     )
                 }
             }
         } else {
-            items(filtered, key = { it.id }) { item ->
+            items(filtered.chunked(2), key = { row -> row.joinToString("-") { it.id } }) { pair ->
                 Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                        .figCraftSpringClickable { onOpenAnime(item) }
-                        .padding(10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.Top
                 ) {
-                    AsyncImage(
-                        model = item.posterUrl,
-                        contentDescription = item.title,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.size(width = 88.dp, height = 118.dp).clip(RoundedCornerShape(14.dp))
-                    )
-                    Column(
-                        Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(7.dp)
-                    ) {
-                        Text(
-                            item.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
+                    pair.forEach { item ->
+                        FigCraftAnimeGridCard(
+                            anime = item,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onOpenAnime(item) }
                         )
-                        Text(
-                            item.genres.ifBlank { item.animeType.ifBlank { "أنمي" } },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            item.description.orEmpty().ifBlank { "اكتشف التفاصيل والحلقات المتاحة لهذا العمل." },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(Modifier.height(1.dp))
-                        Text("عرض التفاصيل  ›", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                     }
+                    if (pair.size == 1) Spacer(Modifier.weight(1f))
                 }
             }
         }
     }
 }
 
+@Composable
+private fun FigCraftAnimeGridCard(
+    anime: Anime,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(18.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(18.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .figCraftSpringClickable(onClick),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Box(
+            Modifier.fillMaxWidth().height(196.dp)
+                .clip(RoundedCornerShape(topStart = 17.dp, topEnd = 17.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+        ) {
+            AsyncImage(
+                model = anime.posterUrl,
+                contentDescription = "غلاف ${anime.title}",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            Box(
+                Modifier.fillMaxWidth().height(84.dp).align(Alignment.BottomCenter)
+                    .background(Brush.verticalGradient(listOf(androidx.compose.ui.graphics.Color.Transparent, androidx.compose.ui.graphics.Color(0xE6000000))))
+            )
+            if (anime.rating.isNotBlank()) {
+                Text(
+                    "★ ${anime.rating}",
+                    modifier = Modifier.align(Alignment.TopStart).padding(8.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(androidx.compose.ui.graphics.Color(0xD9000000))
+                        .padding(horizontal = 7.dp, vertical = 5.dp),
+                    color = androidx.compose.ui.graphics.Color.White,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Text(
+                anime.animeType.ifBlank { "أنمي" },
+                modifier = Modifier.align(Alignment.BottomStart).padding(9.dp)
+                    .clip(RoundedCornerShape(7.dp))
+                    .background(MaterialTheme.colorScheme.primary)
+                    .padding(horizontal = 7.dp, vertical = 4.dp),
+                color = MaterialTheme.colorScheme.onPrimary,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
+            )
+        }
+        Column(Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                anime.title,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                anime.titleEn.ifBlank { anime.genres.ifBlank { "اكتشف التفاصيل" } },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
 
 @Composable
 internal fun FigCraftProfileScreen(onOpenSettings: () -> Unit) {
@@ -256,8 +326,8 @@ internal fun FigCraftProfileScreen(onOpenSettings: () -> Unit) {
                     )
                 }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text("عشيرة الأوتشيها", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.ExtraBold)
-                    Text("مساحة المشاهدة الخاصة بك", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("إيتاشي أوتشيها", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.ExtraBold)
+                    Text("Genin • Rogue", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text("UCHIHA ANIME", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                 }
             }
@@ -313,7 +383,8 @@ private fun ProfileActionRow(
     Row(
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(20.dp))
+            .background(MaterialTheme.colorScheme.surface)
             .figCraftSpringClickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 15.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -333,7 +404,6 @@ private fun ProfileActionRow(
         Text("‹", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
-
 
 @Composable
 private fun Modifier.figCraftSpringClickable(onClick: () -> Unit): Modifier {
