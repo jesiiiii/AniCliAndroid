@@ -291,6 +291,14 @@ private fun FigCraftAnimeGridCard(
 
 @Composable
 internal fun FigCraftProfileScreen(onOpenSettings: () -> Unit) {
+    var infoDialog by rememberSaveable { mutableStateOf<String?>(null) }
+    val dialogMessage = when (infoDialog) {
+        "الحساب" -> "الملف الحالي محلي على جهازك، ولا يتطلب إنشاء حساب أو تسجيل دخول."
+        "التنزيلات" -> "إدارة التنزيلات دون اتصال غير متاحة في النسخة الحالية، لذلك لن نعرض أرقام تنزيلات وهمية."
+        "الإشعارات" -> "لم تُربط خدمة إشعارات الحلقات الجديدة بعد."
+        "الدعم" -> "لم يُضف رابط دعم رسمي إلى التطبيق بعد."
+        else -> null
+    }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 28.dp),
@@ -337,8 +345,16 @@ internal fun FigCraftProfileScreen(onOpenSettings: () -> Unit) {
         }
         item {
             ProfileActionRow(
-                title = "إعدادات التطبيق",
-                subtitle = "المظهر، التشغيل، وجودة الفيديو",
+                title = "الحساب",
+                subtitle = "ملف المشاهدة المحلي",
+                icon = androidx.compose.material.icons.Icons.Rounded.Person,
+                onClick = { infoDialog = "الحساب" }
+            )
+        }
+        item {
+            ProfileActionRow(
+                title = "التفضيلات",
+                subtitle = "المظهر والتشغيل وتجربة المشاهدة",
                 icon = androidx.compose.material.icons.Icons.Rounded.Settings,
                 onClick = onOpenSettings
             )
@@ -349,6 +365,30 @@ internal fun FigCraftProfileScreen(onOpenSettings: () -> Unit) {
                 subtitle = "إدارة خيارات المشاهدة من الإعدادات",
                 icon = androidx.compose.material.icons.Icons.Rounded.Star,
                 onClick = onOpenSettings
+            )
+        }
+        item {
+            ProfileActionRow(
+                title = "التنزيلات",
+                subtitle = "حالة ميزة المشاهدة دون اتصال",
+                icon = androidx.compose.material.icons.Icons.Rounded.FileDownload,
+                onClick = { infoDialog = "التنزيلات" }
+            )
+        }
+        item {
+            ProfileActionRow(
+                title = "الإشعارات",
+                subtitle = "تنبيهات الحلقات الجديدة",
+                icon = androidx.compose.material.icons.Icons.Rounded.Notifications,
+                onClick = { infoDialog = "الإشعارات" }
+            )
+        }
+        item {
+            ProfileActionRow(
+                title = "الدعم",
+                subtitle = "معلومات المساعدة والتواصل",
+                icon = androidx.compose.material.icons.Icons.Rounded.SupportAgent,
+                onClick = { infoDialog = "الدعم" }
             )
         }
         item {
@@ -370,6 +410,19 @@ internal fun FigCraftProfileScreen(onOpenSettings: () -> Unit) {
                     .background(MaterialTheme.colorScheme.surfaceContainerLow).padding(16.dp)
             )
         }
+    }
+    if (infoDialog != null && dialogMessage != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { infoDialog = null },
+            title = { Text(infoDialog.orEmpty(), fontWeight = FontWeight.Bold) },
+            text = { Text(dialogMessage, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = { infoDialog = null }) {
+                    Text("حسنًا")
+                }
+            },
+            shape = RoundedCornerShape(24.dp)
+        )
     }
 }
 
