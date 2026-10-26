@@ -2,13 +2,33 @@ package dev.anicli.android
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +42,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -32,6 +53,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.MenuBook
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -58,11 +81,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -80,7 +110,10 @@ import dev.anicli.android.util.Dimens.CardCornerRadius
 import dev.anicli.android.util.Dimens.CardPosterSize
 import dev.anicli.android.util.Dimens.PillCornerRadius
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
@@ -142,7 +175,7 @@ class SearchViewModel : ViewModel() {
     init {
         @OptIn(FlowPreview::class)
         viewModelScope.launch {
-            query.debounce(450).collect { text ->
+            query.debounce(350).distinctUntilChanged().collectLatest { text ->
                 val trimmed = text.trim()
                 if (trimmed.isBlank()) {
                     results = emptyList(); searched = false; error = null; loading = false
@@ -152,6 +185,8 @@ class SearchViewModel : ViewModel() {
                         results = SlayerApi.search(trimmed)
                         searched = true
                         loading = false
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         results = emptyList()
                         error = e.message ?: "تعذّر إكمال البحث."
@@ -184,52 +219,89 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun UchihaApp() {
     val context = LocalContext.current
-    var screen by rememberSaveable { mutableStateOf("home") }
     var selectedAnimeId by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedAnimeTitle by rememberSaveable { mutableStateOf("") }
+    var selectedAnimeSharedKey by rememberSaveable { mutableStateOf("") }
+    val closeDetailsWithoutSharedExit = {
+        selectedAnimeSharedKey = ""
+        selectedAnimeId = null
+    }
+    BackHandler(enabled = selectedAnimeId != null) {
+        closeDetailsWithoutSharedExit()
+    }
+    val destination = if (selectedAnimeId != null) "details:${selectedAnimeId}" else "home"
 
-    if (selectedAnimeId != null) {
-        DetailsScreen(
-            animeId = selectedAnimeId!!,
-            onSelectEpisode = { number ->
-                context.startActivity(
-                    PlayerActivity.intent(context, selectedAnimeId!!, selectedAnimeTitle, number)
+    SharedTransitionLayout {
+        val sharedScope = this
+        AnimatedContent(
+        targetState = destination,
+        transitionSpec = {
+            (fadeIn(tween(190)) + slideInHorizontally(initialOffsetX = { it / 18 })) togetherWith
+                (fadeOut(tween(130)) + slideOutHorizontally(targetOffsetX = { -it / 28 }))
+        },
+        label = "uchiha-screen-transition"
+    ) { target ->
+        when {
+            target.startsWith("details:") -> {
+                val animeId = target.removePrefix("details:")
+                DetailsScreen(
+                    animeId = animeId,
+                    sharedTransitionScope = sharedScope,
+                    animatedVisibilityScope = this,
+                    sharedElementKey = selectedAnimeSharedKey,
+                    onSelectEpisode = { number ->
+                        context.startActivity(
+                            PlayerActivity.intent(context, animeId, selectedAnimeTitle, number)
+                        )
+                    },
+                    onBack = { closeDetailsWithoutSharedExit() }
                 )
-            },
-            onBack = { selectedAnimeId = null }
-        )
-        return
-    }
-    if (screen == "search") {
-        SearchScreen(onBack = { screen = "home" }) { anime ->
-            selectedAnimeId = anime.id
-            selectedAnimeTitle = anime.title
+            }
+            else -> HomeScreen(
+                sharedTransitionScope = sharedScope,
+                animatedVisibilityScope = this,
+                onOpenAnime = { anime, sharedKey ->
+                    selectedAnimeId = anime.id
+                    selectedAnimeTitle = anime.title
+                    selectedAnimeSharedKey = sharedKey
+                }
+            )
         }
-        return
-    }
-    HomeScreen(
-        onOpenSearch = { screen = "search" },
-        onOpenAnime = { anime ->
-            selectedAnimeId = anime.id
-            selectedAnimeTitle = anime.title
         }
-    )
+    }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
-fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
+fun HomeScreen(
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    onOpenAnime: (Anime, String) -> Unit
+) {
+    var searchActive by rememberSaveable { mutableStateOf(false) }
+    var selectedTab by rememberSaveable { mutableStateOf("home") }
+    BackHandler(enabled = searchActive) { searchActive = false }
     val vm: HomeViewModel = viewModel()
     val homeListState = androidx.compose.foundation.lazy.rememberLazyListState()
-    val scrollBlur by animateDpAsState(if (homeListState.isScrollInProgress) 1.6.dp else 0.dp, label = "poster-scroll-blur")
+    val scrollBlur = 0.dp // Keep poster artwork crisp while scrolling.
     LaunchedEffect(Unit) {
         if (vm.latest.isEmpty() && vm.trending.isEmpty() && vm.topRated.isEmpty()) vm.load()
     }
-    Scaffold(containerColor = MaterialTheme.colorScheme.background, bottomBar = { CapsuleNavigationBar(selected = "home", onHome = {}, onSearch = onOpenSearch) }) { innerPadding ->
-        when {
+    Scaffold(containerColor = MaterialTheme.colorScheme.background, bottomBar = { CapsuleNavigationBar(selected = selectedTab, onHome = { selectedTab = "home"; searchActive = false }, onManga = { selectedTab = "manga"; searchActive = false }, onSettings = { selectedTab = "settings"; searchActive = false }) }) { innerPadding ->
+        if (searchActive) {
+            SearchScreen(
+                onBack = { searchActive = false },
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+                onOpenAnime = onOpenAnime
+            )
+        } else when {
+            selectedTab == "manga" -> Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) { CenterState("المانجا", "قسم المانجا جاهز للربط بمصدر مانجا مستقل.") }
+            selectedTab == "settings" -> Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) { CenterState("الإعدادات", "ستظهر إعدادات التطبيق هنا.") }
             vm.loading && vm.latest.isEmpty() -> Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
@@ -252,13 +324,25 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                                Text("Uchiha", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Black)
-                                Text("Anime", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                UchihaClanCrest(Modifier.size(width = 34.dp, height = 40.dp))
+                                Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                                    Text("Uchiha", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Black)
+                                    Text("Anime", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                }
                             }
                             MangekyoSharingan(Modifier.size(58.dp))
                         }
-                        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surfaceContainerLowest).clickable { onOpenSearch() }.padding(horizontal = 18.dp, vertical = 16.dp)) {
+                        Box(
+                            Modifier.fillMaxWidth()
+                                .clip(RoundedCornerShape(22.dp))
+                                .background(Color(0xFFF0EEEE))
+                                .clickable { searchActive = true }
+                                .padding(horizontal = 18.dp, vertical = 16.dp)
+                        ) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Icon(Icons.Rounded.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                 Text("ابحث عن عالمك القادم...", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
@@ -272,8 +356,11 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                     item {
                         val dayIndex = java.time.LocalDate.now().toEpochDay().mod(vm.trending.size.toLong()).toInt()
                         val featured = vm.trending[dayIndex]
-                        Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(258.dp).clip(RoundedCornerShape(28.dp)).clickable { onOpenAnime(featured) }) {
-                            SlayerPosterImage(posterUrl = featured.posterUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                        Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(258.dp).clip(RoundedCornerShape(28.dp)).clickable { onOpenAnime(featured, "anime-poster:featured:${featured.id}") }) {
+                            SlayerPosterImage(posterUrl = featured.posterUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().sharedPosterElement(
+                                sharedTransitionScope, animatedVisibilityScope,
+                                "anime-poster:featured:${featured.id}", RoundedCornerShape(28.dp)
+                            ))
                             Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color(0xE5101734)))))
                             Column(Modifier.align(Alignment.BottomStart).padding(20.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                                 Text("اختيار المحرّر", color = Color(0xFFFF9C86), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
@@ -286,6 +373,58 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                         }
                     }
                 }
+                val recommendations = vm.trending.distinctBy { it.id }.take(5)
+                if (recommendations.isNotEmpty()) {
+                    item { SectionHeading("اختيارنا لك", "أنميات اخترناها لك", "مختارات") }
+                    item {
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 20.dp),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            items(recommendations, key = { it.id }) { anime ->
+                                Column(
+                                    Modifier.width(148.dp).springClickable(onClick = {
+                                        onOpenAnime(anime, "anime-poster:recommendation:${anime.id}")
+                                    }),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Box(
+                                        Modifier.fillMaxWidth().height(214.dp)
+                                            .clip(RoundedCornerShape(18.dp))
+                                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    ) {
+                                        SlayerPosterImage(
+                                            posterUrl = anime.posterUrl,
+                                            contentDescription = "بوستر ${anime.title}",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                        Box(
+                                            Modifier.fillMaxWidth().height(76.dp).align(Alignment.BottomCenter)
+                                                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.76f))))
+                                        )
+                                        Text(
+                                            anime.rating.ifBlank { "—" },
+                                            modifier = Modifier.align(Alignment.BottomEnd).padding(9.dp),
+                                            color = Color.White,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                    Text(
+                                        anime.title,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                        minLines = 2
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
                 if (vm.latest.isNotEmpty()) {
                     item { SectionHeading("وصل حديثاً", "أحدث الحلقات", "جديد") }
                     item {
@@ -293,8 +432,8 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                             vm.latest.chunked(2).forEach { pair ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                     pair.forEach { ep ->
-                                        PosterTile(title = ep.animeTitle, titleEnglish = ep.animeTitle, badge = "الحلقة ${ep.episodeNumber}", rating = ep.rating ?: "—", modifier = Modifier.weight(1f), blurRadius = scrollBlur, posterUrl = ep.posterUrl) {
-                                            onOpenAnime(Anime(id = ep.animeId, title = ep.animeTitle, posterUrl = ep.posterUrl, rating = ep.rating))
+                                        PosterTile(title = ep.animeTitle, titleEnglish = ep.animeTitle, badge = "الحلقة ${ep.episodeNumber}", rating = ep.rating ?: "—", modifier = Modifier.weight(1f), blurRadius = scrollBlur, posterUrl = ep.posterUrl, sharedTransitionScope = sharedTransitionScope, animatedVisibilityScope = animatedVisibilityScope, sharedElementKey = "anime-poster:latest:${ep.animeId}") {
+                                            onOpenAnime(Anime(id = ep.animeId, title = ep.animeTitle, posterUrl = ep.posterUrl, rating = ep.rating), "anime-poster:latest:${ep.animeId}")
                                         }
                                     }
                                     if (pair.size == 1) Spacer(Modifier.weight(1f))
@@ -309,7 +448,7 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             vm.trending.chunked(2).forEach { pair ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    pair.forEach { anime -> PosterTile(anime.title, anime.titleEn, anime.animeType, anime.rating ?: "—", Modifier.weight(1f), blurRadius = scrollBlur, posterUrl = anime.posterUrl) { onOpenAnime(anime) } }
+                                    pair.forEach { anime -> PosterTile(anime.title, anime.titleEn, anime.animeType, anime.rating ?: "—", Modifier.weight(1f), blurRadius = scrollBlur, posterUrl = anime.posterUrl, sharedTransitionScope = sharedTransitionScope, animatedVisibilityScope = animatedVisibilityScope, sharedElementKey = "anime-poster:trending:${anime.id}") { onOpenAnime(anime, "anime-poster:trending:${anime.id}") } }
                                     if (pair.size == 1) Spacer(Modifier.weight(1f))
                                 }
                             }
@@ -322,7 +461,7 @@ fun HomeScreen(onOpenSearch: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             vm.topRated.chunked(2).forEach { pair ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    pair.forEach { anime -> PosterTile(anime.title, anime.titleEn, anime.animeType, anime.rating, Modifier.weight(1f), blurRadius = scrollBlur, posterUrl = anime.posterUrl) { onOpenAnime(anime) } }
+                                    pair.forEach { anime -> PosterTile(anime.title, anime.titleEn, anime.animeType, anime.rating, Modifier.weight(1f), blurRadius = scrollBlur, posterUrl = anime.posterUrl, sharedTransitionScope = sharedTransitionScope, animatedVisibilityScope = animatedVisibilityScope, sharedElementKey = "anime-poster:top-rated:${anime.id}") { onOpenAnime(anime, "anime-poster:top-rated:${anime.id}") } }
                                     if (pair.size == 1) Spacer(Modifier.weight(1f))
                                 }
                             }
@@ -359,16 +498,52 @@ private fun SlayerPosterImage(posterUrl: String?, contentDescription: String?, c
 }
 
 @Composable
-private fun CapsuleNavigationBar(selected: String, onHome: () -> Unit, onSearch: () -> Unit) {
+private fun CapsuleNavigationBar(
+    selected: String,
+    onHome: () -> Unit,
+    onManga: () -> Unit,
+    onSettings: () -> Unit
+) {
     val capsule = RoundedCornerShape(50)
-    Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background).padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 10.dp).clip(capsule).background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(Modifier.weight(1f).clip(capsule).background(if (selected == "home") MaterialTheme.colorScheme.surface else Color.Transparent).clickable(onClick = onHome).padding(vertical = 11.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.Home, contentDescription = "الرئيسية", tint = if (selected == "home") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(21.dp))
-            if (selected == "home") { Spacer(Modifier.width(7.dp)); Text("الرئيسية", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold) }
-        }
-        Row(Modifier.weight(1f).clip(capsule).background(if (selected == "search") MaterialTheme.colorScheme.surface else Color.Transparent).clickable(onClick = onSearch).padding(vertical = 11.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.Search, contentDescription = "بحث", tint = if (selected == "search") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(21.dp))
-            if (selected == "search") { Spacer(Modifier.width(7.dp)); Text("بحث", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold) }
+    Row(
+        Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 20.dp, end = 20.dp, top = 6.dp, bottom = 8.dp)
+            .shadow(8.dp, capsule).clip(capsule)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        data class NavItem(val id: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector, val action: () -> Unit)
+        val items = listOf(
+            NavItem("home", "الرئيسية", Icons.Rounded.Home, onHome),
+            NavItem("manga", "المانجا", Icons.Rounded.MenuBook, onManga),
+            NavItem("settings", "الإعدادات", Icons.Rounded.Settings, onSettings)
+        )
+        items.forEach { item ->
+            val selectedColor by animateColorAsState(
+                targetValue = if (selected == item.id) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                animationSpec = tween(150),
+                label = "${item.id}-icon-tint"
+            )
+            val pillColor by animateColorAsState(
+                targetValue = if (selected == item.id) MaterialTheme.colorScheme.surface else Color.Transparent,
+                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                label = "${item.id}-pill-selection"
+            )
+            Row(
+                Modifier.weight(1f).clip(capsule).background(pillColor)
+                    .springClickable(onClick = item.action)
+                    .padding(vertical = 11.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(item.icon, contentDescription = item.label, tint = selectedColor, modifier = Modifier.size(21.dp))
+                AnimatedVisibility(visible = selected == item.id, enter = fadeIn(tween(130)) + expandHorizontally(), exit = fadeOut(tween(90)) + shrinkHorizontally()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Spacer(Modifier.width(6.dp))
+                        Text(item.label, color = selectedColor, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+                    }
+                }
+            }
         }
     }
 }
@@ -384,11 +559,14 @@ private fun SectionHeading(eyebrow: String, title: String, tag: String) {
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-private fun PosterTile(title: String, titleEnglish: String = title, badge: String?, rating: String, modifier: Modifier = Modifier, blurRadius: androidx.compose.ui.unit.Dp = 0.dp, posterUrl: String? = null, onClick: () -> Unit) {
-    Column(modifier.fillMaxWidth().clickable(onClick = onClick), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+private fun PosterTile(title: String, titleEnglish: String = title, badge: String?, rating: String, modifier: Modifier = Modifier, blurRadius: androidx.compose.ui.unit.Dp = 0.dp, posterUrl: String? = null, sharedTransitionScope: SharedTransitionScope? = null, animatedVisibilityScope: AnimatedVisibilityScope? = null, sharedElementKey: String? = null, onClick: () -> Unit) {
+    Column(modifier.fillMaxWidth().springClickable(onClick = onClick), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Box(Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
-            SlayerPosterImage(posterUrl = posterUrl, contentDescription = "غلاف $title", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().blur(blurRadius))
+            SlayerPosterImage(posterUrl = posterUrl, contentDescription = "غلاف $title", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().blur(blurRadius).sharedPosterElement(
+                sharedTransitionScope, animatedVisibilityScope, sharedElementKey, RoundedCornerShape(20.dp)
+            ))
             Box(Modifier.fillMaxWidth().height(104.dp).align(Alignment.BottomCenter).background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color(0xCC000000)))))
             if (!badge.isNullOrBlank()) {
                 Text(badge, modifier = Modifier.align(Alignment.TopStart).padding(8.dp).clip(RoundedCornerShape(9.dp)).background(Color(0xFFF04444).copy(alpha = 0.94f)).padding(horizontal = 8.dp, vertical = 5.dp), color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, maxLines = 1)
@@ -409,38 +587,56 @@ private fun MangekyoSharingan(modifier: Modifier = Modifier) {
     val angle = remember { Animatable(0f) }
     LaunchedEffect(Unit) {
         while (true) {
-            angle.animateTo(360f, animationSpec = tween(durationMillis = 900))
+            angle.animateTo(360f, animationSpec = tween(durationMillis = 1500))
             angle.snapTo(0f)
-            delay(2000)
         }
     }
-    Canvas(modifier = modifier) {
-        val cx = size.width / 2f
-        val cy = size.height / 2f
-        val radius = size.minDimension * 0.47f
-        drawCircle(Color(0xFFB80F24), radius = radius, center = Offset(cx, cy))
-        rotate(angle.value, pivot = Offset(cx, cy)) {
-            drawCircle(Color(0xFF17131A), radius = radius * 0.78f, center = Offset(cx, cy), style = androidx.compose.ui.graphics.drawscope.Stroke(width = radius * 0.055f))
-            drawCircle(Color(0xFF17131A), radius = radius * 0.20f, center = Offset(cx, cy))
-            repeat(3) { index ->
-                rotate(index * 120f, pivot = Offset(cx, cy)) {
-                    drawCircle(Color(0xFF17131A), radius = radius * 0.14f, center = Offset(cx, cy - radius * 0.53f))
-                    drawCircle(Color(0xFF17131A), radius = radius * 0.105f, center = Offset(cx + radius * 0.18f, cy - radius * 0.37f))
-                }
-            }
-        }
-        drawCircle(Color(0xFFFAF8F4), radius = radius * 0.07f, center = Offset(cx, cy))
+    OutlinedOriginalAsset(
+        url = "https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Mangekyou_Sharingan_Itachi.svg/500px-Mangekyou_Sharingan_Itachi.svg.png",
+        contentDescription = "مانغيكيو شارينغان إيتاتشي",
+        modifier = modifier.graphicsLayer { rotationZ = angle.value }
+    )
+}
+
+@Composable
+private fun UchihaClanCrest(modifier: Modifier = Modifier) {
+    OutlinedOriginalAsset(
+        url = "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Symbole_Uchiwa.svg/500px-Symbole_Uchiwa.svg.png",
+        contentDescription = "شعار عشيرة أوتشيها",
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun OutlinedOriginalAsset(url: String, contentDescription: String, modifier: Modifier = Modifier) {
+    Box(modifier, contentAlignment = Alignment.Center) {
+        AsyncImage(
+            model = url,
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            colorFilter = ColorFilter.tint(Color.Black),
+            modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = 1.055f; scaleY = 1.055f }
+        )
+        AsyncImage(
+            model = url,
+            contentDescription = contentDescription,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }
 
 /** Cinematic poster card: editorial typography, clean surfaces, and a confident accent. */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun AnimeCard(
     anime: Anime,
     badgeOverride: String? = null,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
+    sharedElementKey: String? = null
 ) {
     Card(
         onClick = onClick,
@@ -468,7 +664,9 @@ fun AnimeCard(
                     posterUrl = anime.posterUrl,
                     contentDescription = "غلاف ${anime.title}",
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize().sharedPosterElement(
+                        sharedTransitionScope, animatedVisibilityScope, sharedElementKey, RoundedCornerShape(16.dp)
+                    )
                 )
                 Box(
                     Modifier
@@ -541,7 +739,7 @@ fun AnimeCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun LatestEpisodeCard(
     episode: SlayerApi.LatestScreenEpisode,
@@ -560,14 +758,20 @@ fun LatestEpisodeCard(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
-fun SearchScreen(onBack: () -> Unit, onOpenAnime: (Anime) -> Unit) {
+fun SearchScreen(
+    onBack: () -> Unit,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    onOpenAnime: (Anime, String) -> Unit
+) {
     val vm: SearchViewModel = viewModel()
-    var query by rememberSaveable { mutableStateOf("") }
+    // The ViewModel survives when search is hidden; keep the field and its results in sync.
+    var query by rememberSaveable { mutableStateOf(vm.query.value) }
     Scaffold(
         modifier = Modifier.background(MaterialTheme.colorScheme.background),
-        bottomBar = { CapsuleNavigationBar(selected = "search", onHome = onBack, onSearch = {}) }
+        
     ) { innerPadding ->
         Column(
             Modifier
@@ -633,7 +837,13 @@ fun SearchScreen(onBack: () -> Unit, onOpenAnime: (Anime) -> Unit) {
                         )
                     }
                     items(vm.results, key = { it.id + "s" }) { anime ->
-                        AnimeCard(anime = anime, onClick = { onOpenAnime(anime) })
+                        AnimeCard(
+                            anime = anime,
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            sharedElementKey = "anime-poster:search:${anime.id}",
+                            onClick = { onOpenAnime(anime, "anime-poster:search:${anime.id}") }
+                        )
                     }
                 }
             }
@@ -641,8 +851,16 @@ fun SearchScreen(onBack: () -> Unit, onOpenAnime: (Anime) -> Unit) {
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: () -> Unit) {
+fun DetailsScreen(
+    animeId: String,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    sharedElementKey: String,
+    onSelectEpisode: (String) -> Unit,
+    onBack: () -> Unit
+) {
     var data by remember { mutableStateOf<AnimeWithEpisodes?>(null) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -679,24 +897,40 @@ fun DetailsScreen(animeId: String, onSelectEpisode: (String) -> Unit, onBack: ()
                         contentPadding = PaddingValues(bottom = 32.dp)
                     ) {
                         item {
-                            Box(Modifier.fillMaxWidth().height(410.dp).clip(RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp)).background(Color(0xFFF1EEEE))) {
-                                SlayerPosterImage(posterUrl = info.anime.posterUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().blur(34.dp))
-                                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.20f)))
+                            Box(Modifier.fillMaxWidth().height(410.dp).clip(RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp)).background(MaterialTheme.colorScheme.background)) {
+                                SlayerPosterImage(posterUrl = info.anime.posterUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                                Box(
+                                    Modifier.fillMaxSize().background(
+                                        Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.32f), Color.Transparent), startY = 0f, endY = 230f)
+                                    )
+                                )
+                                Box(
+                                    Modifier.fillMaxWidth().height(250.dp).align(Alignment.BottomCenter).background(
+                                        Brush.verticalGradient(listOf(Color.Transparent, MaterialTheme.colorScheme.background))
+                                    )
+                                )
                                 IconButton(onClick = onBack, modifier = Modifier.padding(14.dp).align(Alignment.TopStart).background(Color.Black.copy(alpha = 0.42f), CircleShape)) {
                                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "رجوع", tint = Color.White)
                                 }
                                 Row(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(start = 22.dp, end = 22.dp, bottom = 26.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                                     Box(Modifier.width(112.dp).height(158.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
-                                        SlayerPosterImage(posterUrl = info.anime.posterUrl, contentDescription = "بوستر ${info.anime.title}", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                                        SlayerPosterImage(
+                                            posterUrl = info.anime.posterUrl,
+                                            contentDescription = "بوستر ${info.anime.title}",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize().sharedPosterElement(
+                                                sharedTransitionScope, animatedVisibilityScope, sharedElementKey, RoundedCornerShape(16.dp)
+                                            )
+                                        )
                                     }
                                     Column(Modifier.weight(1f).padding(bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Text(info.anime.title, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Start, color = Color.White, fontWeight = FontWeight.ExtraBold, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                                        Text(info.anime.title, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Start, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.ExtraBold, maxLines = 3, overflow = TextOverflow.Ellipsis)
                                         if (info.anime.titleEn.isNotBlank() && info.anime.titleEn != info.anime.title) {
-                                            Text(info.anime.titleEn, style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.82f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            Text(info.anime.titleEn, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         }
                                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                                             Icon(Icons.Rounded.Star, contentDescription = "التقييم", tint = Color(0xFFFFD166), modifier = Modifier.size(18.dp))
-                                            Text(info.anime.rating.ifBlank { "—" }, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                            Text(info.anime.rating.ifBlank { "—" }, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                                         }
                                         Button(onClick = { info.episodes.firstOrNull()?.let { onSelectEpisode(it.number) } }, enabled = info.episodes.isNotEmpty(), shape = RoundedCornerShape(50), contentPadding = PaddingValues(horizontal = 22.dp, vertical = 10.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = Color.White, disabledContainerColor = Color.DarkGray)) {
                                             Text("▶  ابدأ المشاهدة", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
@@ -870,4 +1104,50 @@ fun ErrorState(title: String, message: String, onRetry: () -> Unit) {
             Text("إعادة المحاولة")
         }
     }
+}
+
+/**
+ * Lightweight press feedback built on Compose interactions. It keeps click handling native,
+ * scales only while pressed, and emits one subtle haptic on activation rather than per frame.
+ */
+@Composable
+private fun Modifier.springClickable(
+    onClick: () -> Unit,
+    hapticOnClick: Boolean = true
+): Modifier {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.975f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "press-scale"
+    )
+    val haptics = LocalHapticFeedback.current
+    return this
+        .graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        }
+        .clickable(
+            interactionSource = interactionSource,
+            indication = LocalIndication.current
+        ) {
+            if (hapticOnClick) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            onClick()
+        }
+}
+
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+private fun Modifier.sharedPosterElement(
+    sharedTransitionScope: SharedTransitionScope?,
+    animatedVisibilityScope: AnimatedVisibilityScope?,
+    key: String?,
+    clipShape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(16.dp)
+): Modifier {
+    // Keep posters static when opening details; no shared-element poster morph.
+    return this.clip(clipShape)
 }
