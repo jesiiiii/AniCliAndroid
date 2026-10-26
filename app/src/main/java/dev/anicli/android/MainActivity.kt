@@ -284,6 +284,11 @@ fun UchihaApp() {
                     sharedTransitionScope = sharedScope,
                     animatedVisibilityScope = this,
                     sharedElementKey = selectedAnimeSharedKey,
+                    onOpenRelatedAnime = { anime, sharedKey ->
+                        selectedAnimeId = anime.id
+                        selectedAnimeTitle = anime.title
+                        selectedAnimeSharedKey = sharedKey
+                    },
                     onSelectEpisode = { number ->
                         context.startActivity(
                             PlayerActivity.intent(context, animeId, selectedAnimeTitle, number)
@@ -1008,6 +1013,7 @@ fun DetailsScreen(
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
     sharedElementKey: String,
+    onOpenRelatedAnime: (Anime, String) -> Unit,
     onSelectEpisode: (String) -> Unit,
     onBack: () -> Unit
 ) {
@@ -1020,6 +1026,10 @@ fun DetailsScreen(
     var playRequested by remember { mutableStateOf(false) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val detailsContext = LocalContext.current
+    val relatedVm: HomeViewModel = viewModel()
+    LaunchedEffect(Unit) {
+        if (relatedVm.trending.isEmpty() && relatedVm.topRated.isEmpty()) relatedVm.load()
+    }
     LaunchedEffect(animeId, retryKey) {
         loading = true
         error = null
@@ -1085,6 +1095,18 @@ fun DetailsScreen(
                                     )
                                     IconButton(onClick = onBack, modifier = Modifier.padding(14.dp).align(Alignment.TopStart).background(Color.Black.copy(alpha = 0.42f), CircleShape)) {
                                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "رجوع", tint = Color.White)
+                                    }
+                                    val isFavorite = FavoriteStore.isFavorite(detailsContext, info.anime.id)
+                                    IconButton(
+                                        onClick = { FavoriteStore.toggle(detailsContext, info.anime) },
+                                        modifier = Modifier.padding(14.dp).align(Alignment.TopEnd)
+                                            .background(Color.Black.copy(alpha = 0.42f), CircleShape)
+                                    ) {
+                                        Icon(
+                                            if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                            contentDescription = if (isFavorite) "إزالة من المفضلة" else "إضافة إلى المفضلة",
+                                            tint = if (isFavorite) Color(0xFFFF4D67) else Color.White
+                                        )
                                     }
                                     Row(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(start = 22.dp, end = 22.dp, bottom = 22.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                                         Box(Modifier.width(112.dp).height(158.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
@@ -1243,6 +1265,44 @@ fun DetailsScreen(
                                                     overflow = TextOverflow.Ellipsis
                                                 )
                                                 Text("▶ تشغيل", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        val related = (relatedVm.trending + relatedVm.topRated)
+                            .distinctBy { it.id }
+                            .filterNot { it.id == info.anime.id }
+                            .take(5)
+                        if (related.isNotEmpty()) {
+                            item {
+                                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                                    Row(
+                                        Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text("أنميات مشابهة", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.ExtraBold)
+                                        Text("قد تعجبك", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                                    }
+                                    LazyRow(
+                                        contentPadding = PaddingValues(horizontal = 20.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        items(related, key = { "related:${it.id}" }) { anime ->
+                                            PosterTile(
+                                                title = anime.title,
+                                                titleEnglish = anime.titleEn,
+                                                badge = anime.animeType,
+                                                rating = anime.rating,
+                                                modifier = Modifier.width(142.dp),
+                                                posterUrl = anime.posterUrl,
+                                                sharedTransitionScope = sharedTransitionScope,
+                                                animatedVisibilityScope = animatedVisibilityScope,
+                                                sharedElementKey = "anime-poster:related:${anime.id}"
+                                            ) {
+                                                onOpenRelatedAnime(anime, "anime-poster:related:${anime.id}")
                                             }
                                         }
                                     }
