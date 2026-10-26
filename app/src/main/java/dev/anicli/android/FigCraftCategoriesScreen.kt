@@ -428,3 +428,37 @@ private fun Modifier.figCraftSpringClickable(onClick: () -> Unit): Modifier {
             onClick()
         }
 }
+
+
+@Composable
+internal fun FigCraftFavoritesScreen(
+    favorites: List<Anime>,
+    onOpenAnime: (Anime) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 20.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("المفضلة", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Black)
+                Text("أعمالك المحفوظة على هذا الجهاز", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        if (favorites.isEmpty()) {
+            item {
+                CenterState("قائمتك فارغة", "افتح صفحة أي أنمي واضغط على رمز القلب لإضافته إلى المفضلة.")
+            }
+        } else {
+            items(favorites.chunked(2), key = { row -> row.joinToString("-") { it.id } }) { pair ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+                    pair.forEach { anime ->
+                        FigCraftAnimeGridCard(anime = anime, modifier = Modifier.weight(1f), onClick = { onOpenAnime(anime) })
+                    }
+                    if (pair.size == 1) Spacer(Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
