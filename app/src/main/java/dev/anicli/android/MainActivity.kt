@@ -190,6 +190,17 @@ class HomeViewModel : ViewModel() {
     }
 }
 
+private fun HomeViewModel.figCraftAnimeCatalog(): List<Anime> =
+    (trending + topRated + latest.map { episode ->
+        Anime(
+            id = episode.animeId,
+            title = episode.animeTitle,
+            posterUrl = episode.posterUrl,
+            rating = episode.rating,
+            latestEpisode = episode.episodeNumber
+        )
+    }).distinctBy { it.id }
+
 class SearchViewModel : ViewModel() {
     val query = MutableStateFlow("")
     var results by mutableStateOf<List<Anime>>(emptyList())
@@ -360,7 +371,7 @@ fun HomeScreen(
             )
         } else when {
             selectedTab == "categories" -> FigCraftCategoriesScreen(
-                anime = (vm.trending + vm.topRated).distinctBy { it.id },
+                anime = vm.figCraftAnimeCatalog(),
                 onOpenAnime = { anime -> onOpenAnime(anime, "categories-${anime.id}") }
             )
             selectedTab == "favorites" -> FigCraftFavoritesScreen(
@@ -1275,8 +1286,7 @@ fun DetailsScreen(
                                 }
                             }
                         }
-                        val related = (relatedVm.trending + relatedVm.topRated)
-                            .distinctBy { it.id }
+                        val related = relatedVm.figCraftAnimeCatalog()
                             .filterNot { it.id == info.anime.id }
                             .take(5)
                         if (related.isNotEmpty()) {
